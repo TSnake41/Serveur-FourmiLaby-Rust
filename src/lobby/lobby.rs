@@ -1,9 +1,3 @@
-use std::{
-    net::TcpListener,
-    sync::mpsc::{self, Sender},
-    thread,
-};
-
 use crate::{
     error::ServerError,
     lobby::{message::LobbyIPCMessage, session},
@@ -11,30 +5,36 @@ use crate::{
 
 use super::Lobby;
 
-fn lobby_thread(send: &Sender<LobbyIPCMessage>, listener: TcpListener) -> ! {
-    loop {
-        let (mut stream, addr) = listener.accept().unwrap();
-        println!("{} connected", addr);
-
-        let channel = send.clone();
-
-        // Create a new client session
-        thread::Builder::new()
-            .name(format!("client session {}", addr))
-            .spawn(move || session::client_session_negociation(&mut stream, channel))
-            .unwrap();
-    }
-}
+use std::{
+    net::TcpListener,
+    sync::mpsc::{self, Sender},
+    thread,
+};
 
 impl Lobby {
-    pub fn start_lobby(mut self, listener: TcpListener) -> Result<(), ServerError> {
+    fn lobby(send: &Sender<LobbyIPCMessage>, listener: TcpListener) -> ! {
+        loop {
+            let (mut stream, addr) = listener.accept().unwrap();
+            println!("{} connected", addr);
+    
+            let channel = send.clone();
+    
+            // Create a new client session
+            thread::Builder::new()
+                .name(format!("client session {}", addr))
+                .spawn(move || session::client_session_negociation(&mut stream, channel))
+                .unwrap();
+        }
+    }    
+
+    pub fn start(mut self, listener: TcpListener) -> Result<(), ServerError> {
         println!("Lobby loop listening on {}", listener.local_addr()?);
 
         let (send, recv) = mpsc::channel::<LobbyIPCMessage>();
 
         let _accept_thread = thread::Builder::new()
             .name(String::from("lobby accept"))
-            .spawn(move || lobby_thread(&send, listener))?;
+            .spawn(move || Self::lobby(&send, listener))?;
 
         loop {
             let msg = recv.recv().unwrap();

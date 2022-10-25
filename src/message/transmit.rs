@@ -1,10 +1,11 @@
-use std::io::{Read, Write};
-
 use super::types::Message;
 use crate::error::ServerError;
 
+use std::io::{Read, Write};
+
 const MAX_MESSAGE_SIZE: u32 = 4 * 1024 * 1024; // 4 MiB
 
+/// Write `message` to the `writer` using the protocol.
 pub fn write_message<W: Write>(writer: &mut W, message: &Message) -> Result<(), ServerError> {
     write_message_raw(writer, serde_json::to_string(message)?.as_bytes())
 }

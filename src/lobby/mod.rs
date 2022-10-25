@@ -2,6 +2,11 @@ mod lobby;
 mod message;
 mod session;
 
+use self::message::MatchmakingInfo;
+use crate::{
+    error::ServerError, game::GameSessionInfo, maze::Maze, message::types::JoinMessageBody,
+};
+
 use std::{
     collections::HashMap,
     sync::{self, Arc},
@@ -9,15 +14,10 @@ use std::{
 
 use uuid::Uuid;
 
-use crate::{
-    error::ServerError, game::GameSessionInfo, maze::Maze, message::types::JoinMessageBody,
-};
-
-use self::message::MatchmakingInfo;
-
 pub struct Lobby {
     // Weak pointers allows us to know if a game session is still alive.
-    // However, we will have to housekeep some of these collections to prevent memory leaking.
+    // However, we will have to housekeep those collections to prevent memory from leaking
+    // by unfreed weak pointers.
     games: Vec<sync::Weak<GameSessionInfo>>,
     players: HashMap<Uuid, sync::Weak<GameSessionInfo>>,
 }
@@ -92,9 +92,9 @@ impl Lobby {
         let to_remove: Box<[Uuid]> = self
             .players
             .iter()
-            .filter_map(|(k, session)| {
+            .filter_map(|(uuid, session)| {
                 if session.upgrade().is_none() {
-                    Some(*k)
+                    Some(*uuid)
                 } else {
                     None
                 }

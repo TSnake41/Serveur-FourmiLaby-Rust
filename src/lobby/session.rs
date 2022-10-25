@@ -1,10 +1,4 @@
-use std::{
-    net::{Shutdown, TcpStream},
-    sync::mpsc::{self, Sender},
-};
-
-use uuid::Uuid;
-
+use super::message::LobbyIPCMessage;
 use crate::{
     error::ServerError,
     game::{GameSessionMessage, GameSessionMessageKind},
@@ -15,7 +9,12 @@ use crate::{
     },
 };
 
-use super::message::LobbyIPCMessage;
+use std::{
+    net::{Shutdown, TcpStream},
+    sync::mpsc::{self, Sender},
+};
+
+use uuid::Uuid;
 
 pub fn client_session_negociation(
     client: &mut TcpStream,
@@ -102,11 +101,10 @@ fn client_session_loop(
 ) -> Result<(), ServerError> {
     loop {
         let msg = read_message(client)?;
-        if let Err(err) = channel.send(GameSessionMessage(
+
+        channel.send(GameSessionMessage(
             uuid,
             GameSessionMessageKind::ClientMessage(msg),
-        )) {
-            return Err(ServerError::other(err));
-        }
+        ))?;
     }
 }

@@ -1,8 +1,10 @@
-use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Write};
-
 use crate::error::ServerError;
 
+use std::fmt::{Display, Write};
+
+use serde::{Deserialize, Serialize};
+
+/// A wrapped maze tile.
 #[derive(Debug)]
 pub struct Tile(u8);
 
@@ -81,7 +83,7 @@ impl Maze {
             nb_line: height,
             nest_column: nest_pos.0,
             nest_line: nest_pos.1,
-            tiles: tiles.into(),
+            tiles: tiles.clone().into(),
         })
     }
 
