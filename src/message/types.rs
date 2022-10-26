@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{error::ServerError, maze::Maze};
 
 /// Message received by the server by the client in the lobby to initiate the matchmaking.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JoinMessageBody {
     /// Asked difficulty.
@@ -14,7 +14,7 @@ pub struct JoinMessageBody {
 }
 
 /// Message sent by the server to the client in the lobby to prepare the client to join the game session.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OkMazeMessageBody {
     pub maze: Maze,
@@ -22,7 +22,7 @@ pub struct OkMazeMessageBody {
 }
 
 /// Message sent by the server to the client that contains the current game view of the player.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InfoMessageBody {
     pub player_column: u32,
@@ -31,14 +31,14 @@ pub struct InfoMessageBody {
     pub pheromon: Vec<f32>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveMessageBody {
     pub direction: u32 //TODO: Use a more appropriate type for direction (enum ?).
 }
 
 /// Enumeration of all the possible messages formats.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "body", rename_all = "camelCase")]
 pub enum Message {
     Join(JoinMessageBody),

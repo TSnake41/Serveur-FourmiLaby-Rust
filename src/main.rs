@@ -23,7 +23,7 @@ use error::ServerError;
 fn main() -> Result<(), ServerError> {
     let lobby = lobby::Lobby::new();
 
-    lobby.start(TcpListener::bind(
+    lobby.run(TcpListener::bind(
         SocketAddr::from_str("0.0.0.0:8080").unwrap(),
     )?)?;
 

@@ -5,7 +5,7 @@ use std::sync::{mpsc::Sender, Arc, Mutex};
 use uuid::Uuid;
 
 /// Message sent by the lobby thread to a client thread to indicate that
-/// the client has joined (or not) the game (specified by JoinedGame).
+/// the client has joined (or not) the game (specified by [`MatchmakingInfo::JoinedGame`]).
 pub enum MatchmakingInfo {
     JoinedGame(Uuid, Arc<GameSessionInfo>),
     ExpiredUuid,

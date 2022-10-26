@@ -27,7 +27,7 @@ impl Lobby {
         }
     }    
 
-    pub fn start(mut self, listener: TcpListener) -> Result<(), ServerError> {
+    pub fn run(mut self, listener: TcpListener) -> Result<(), ServerError> {
         println!("Lobby loop listening on {}", listener.local_addr()?);
 
         let (send, recv) = mpsc::channel::<LobbyIPCMessage>();

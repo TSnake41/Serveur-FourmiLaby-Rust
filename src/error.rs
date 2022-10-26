@@ -7,6 +7,7 @@ pub enum ServerError {
     InvalidMaze(Box<str>),
     Transmission(Box<str>),
     SerializerError(Box<str>),
+    AlreadyConnected,
     Other(Box<str>),
 }
 
@@ -78,6 +79,12 @@ impl<T> From<std::sync::mpsc::SendError<T>> for ServerError {
     }
 }
 
+impl From<std::sync::mpsc::RecvError> for ServerError {
+    fn from(err: std::sync::mpsc::RecvError) -> Self {
+        ServerError::Other(format!("{:?}", err).into_boxed_str())
+    }
+}
+
 impl Display for ServerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -85,6 +92,7 @@ impl Display for ServerError {
             ServerError::Transmission(msg) => write!(f, "Transmission: {}", msg),
             ServerError::Other(msg) => write!(f, "Other: {}", msg),
             ServerError::SerializerError(msg) => write!(f, "Serialization: {}", msg),
+            ServerError::AlreadyConnected => write!(f, "A client with this UUID is already connected !"),
         }
     }
 }
