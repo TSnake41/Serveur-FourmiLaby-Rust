@@ -1,10 +1,12 @@
-mod lobby;
-mod message;
-mod session;
+mod logic;
+pub mod message;
 
 use self::message::MatchmakingInfo;
 use crate::{
-    error::ServerError, game::GameSessionInfo, maze::Maze, message::types::JoinMessageBody,
+    error::ServerError,
+    game::{self, GameSessionInfo},
+    maze::generate_basic_maze,
+    message::types::JoinMessageBody,
 };
 
 use std::{
@@ -44,21 +46,8 @@ impl Lobby {
         &mut self,
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
-        //
-        // TODO: Make a real game
-        //
-        let game = Arc::into_raw(Arc::new(GameSessionInfo {
-            channel: sync::mpsc::channel().0.into(),
-            maze: Maze::default(),
-        }));
-
-        unsafe { Arc::increment_strong_count(game) }
-
-        let game = unsafe { Arc::from_raw(game) };
-
-        self.games.push(Arc::downgrade(&game));
-
-        Ok(game)
+        // TODO: Consider criteras
+        game::GameSession::start_new(generate_basic_maze(5)?)
     }
 
     /// Find a suitable game for the JoinMessage, try to reconnect to session if UUID is specified in message.

@@ -7,27 +7,33 @@ use crate::{
 use std::{
     collections::HashMap,
     sync::{
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, sync_channel, Receiver, Sender},
         Arc, Mutex,
     },
     thread,
+    time::Duration,
 };
 
 use uuid::Uuid;
 
+/// The kind of message that can be sent to a game session channel.
 pub enum GameSessionMessageKind {
-    ClientMessage(Message),
     InitializePlayer(Sender<Message>),
+    ClientMessage(Message),
     UpdateAllPlayers,
 }
 
+/// A game session message sent to a game session channel.
 pub struct GameSessionMessage(pub Uuid, pub GameSessionMessageKind);
 
+/// The information associated to a game session shared between lobby and the game session.
+/// May be sent to a client session.
 pub struct GameSessionInfo {
     pub channel: Mutex<Sender<GameSessionMessage>>,
     pub maze: Maze,
 }
 
+/// The player information
 struct PlayerInfo {
     channel: Option<Sender<Message>>,
     position: (u32, u32),
@@ -45,12 +51,22 @@ impl PlayerInfo {
     }
 }
 
+/// A game session.
+/// This instance should be only used by a single thread.
 pub struct GameSession {
     maze: Maze,
     players: HashMap<Uuid, PlayerInfo>,
     channel: Receiver<GameSessionMessage>,
 
-    /// Internal instance UUID
+    /// Must be kept held to keep alive the weak lobby's [`std::sync::Weak`] refeference.
+    _info: Arc<GameSessionInfo>,
+
+    /// pheromon may be sent though channels, use Arc::make_mut to make this object mutable
+    /// as needed while not needing to duplicate the whole vector each time we need a copy
+    /// of it by following a clone-on-write behaviour.
+    pheromon: Arc<Box<[f32]>>,
+
+    /// Internal instance UUID, used for debugging.
     uuid: Uuid,
 }
 
@@ -64,9 +80,9 @@ fn try_sending_to_channel(
     // If the player has an active channel.
     if let Some(sender) = channel {
         // Try sending a info message.
-        if let Err(e) = sender.send(message) {
+        if sender.send(message).is_err() {
             // We can't send message to channel, invalidate the channel.
-            eprintln!("{} disconnected of session {}", uuid, session_uuid);
+            eprintln!("{} disconnected the session {}", uuid, session_uuid);
 
             channel.take();
         }
@@ -77,19 +93,23 @@ impl GameSession {
     /// Creates a new [`GameSession`].
     pub fn new(maze: Maze) -> (Self, Arc<GameSessionInfo>) {
         let (sender, receiver) = mpsc::channel::<GameSessionMessage>();
+        let info = Arc::new(GameSessionInfo {
+            channel: sender.into(),
+            maze: maze.clone(),
+        });
+
+        let pheromon: Vec<f32> = vec![0f32; maze.nb_column as usize * maze.nb_line as usize];
 
         (
             Self {
-                maze: maze.clone(),
+                maze,
                 players: HashMap::with_capacity(8),
                 uuid: Uuid::new_v4(),
                 channel: receiver,
+                _info: info.clone(),
+                pheromon: pheromon.into_boxed_slice().into(),
             },
-            GameSessionInfo {
-                channel: sender.into(),
-                maze: maze.clone(),
-            }
-            .into(),
+            info,
         )
     }
 
@@ -112,7 +132,7 @@ impl GameSession {
         */
 
         match message {
-            Message::Move(move_info) => {
+            Message::Move(move_body) => {
                 assert!(player.channel.is_some(), "Channel must exist to be able to receive the feedback. Has recv client channel panicked ?");
 
                 // TODO: game logic
@@ -124,7 +144,7 @@ impl GameSession {
                         player_column: player.position.0,
                         player_line: player.position.1,
                         player_has_food: player.has_food,
-                        pheromon: vec![], // TODO
+                        pheromon: self.pheromon.clone(), // TODO
                     }),
                     uuid,
                     &self.uuid,
@@ -153,7 +173,7 @@ impl GameSession {
     */
     fn init_player(&mut self, uuid: &Uuid, sender: Sender<Message>) -> Result<(), ServerError> {
         // Check if the player exists in the session.
-        match self.players.get_mut(&uuid) {
+        match self.players.get_mut(uuid) {
             Some(player) => {
                 // A player with this UUID exists.
                 match &mut player.channel {
@@ -173,14 +193,30 @@ impl GameSession {
                 // Initialize the player info using the session maze, then add this player to the session.
                 let _ = self
                     .players
-                    .insert(uuid.to_owned(), PlayerInfo::new(&self.maze, sender).into());
+                    .insert(*uuid, PlayerInfo::new(&self.maze, sender));
 
                 Ok(())
             }
         }
     }
 
+    /// Run the game session loop.
     pub fn run(&mut self) -> Result<(), ServerError> {
+        // Create update all thread
+        let sender = self._info.channel.lock().unwrap().clone();
+        thread::Builder::new()
+            .name(format!("GameSession updater {}", self.uuid))
+            .spawn(move || loop {
+                thread::sleep(Duration::from_secs(1));
+                sender
+                    .send(GameSessionMessage(
+                        uuid::Uuid::default(),
+                        GameSessionMessageKind::UpdateAllPlayers,
+                    ))
+                    .unwrap();
+            })
+            .unwrap();
+
         loop {
             let session_msg = self.channel.recv()?;
             let (uuid, kind) = (session_msg.0, session_msg.1);
@@ -204,7 +240,7 @@ impl GameSession {
                                 player_column: info.position.0,
                                 player_line: info.position.1,
                                 player_has_food: info.has_food,
-                                pheromon: vec![], // TODO
+                                pheromon: self.pheromon.clone(), // TODO
                             }),
                             uuid,
                             &self.uuid,
@@ -215,6 +251,7 @@ impl GameSession {
         }
     }
 
+    /// Start in a new thread the game session loop.
     pub fn start_new(maze: Maze) -> Result<Arc<GameSessionInfo>, ServerError> {
         // TODO: Make it asynchronous using lobby's channel ?
 

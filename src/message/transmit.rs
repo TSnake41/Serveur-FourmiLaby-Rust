@@ -19,8 +19,8 @@ pub fn write_message_raw<T: Write>(writer: &mut T, data: &[u8]) -> Result<(), Se
         ))
     })?;
 
-    writer.write(&data_len.to_be_bytes())?;
-    writer.write(data)?;
+    writer.write_all(&data_len.to_be_bytes())?;
+    writer.write_all(data)?;
 
     Ok(())
 }
@@ -39,10 +39,9 @@ pub fn read_message_raw<R: Read>(reader: &mut R) -> Result<Box<[u8]>, ServerErro
         ));
     }
 
-    let mut data = Vec::with_capacity(data_len as usize);
-    data.resize(data_len as usize, 0u8);
+    let mut data = vec![0u8; data_len as usize];
 
-    reader.read_exact(&mut data.as_mut_slice())?;
+    reader.read_exact(data.as_mut_slice())?;
 
     Ok(data.into_boxed_slice())
 }

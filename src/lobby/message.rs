@@ -13,7 +13,7 @@ pub enum MatchmakingInfo {
 }
 
 /// Message sent by the client thread or housekeeping timer thread to the lobby thread.
-pub enum LobbyIPCMessage {
+pub enum LobbyMessage {
     Matchmaking(JoinMessageBody, Mutex<Sender<MatchmakingInfo>>),
     Housekeep,
 }

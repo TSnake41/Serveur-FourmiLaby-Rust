@@ -28,7 +28,7 @@ impl TryInto<Maze> for &CMaze {
                 self.tiles,
                 (self.nb_column as usize) * (self.nb_line as usize),
             )
-            .into()
+            //.into()
         })
     }
 }

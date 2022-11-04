@@ -2,6 +2,7 @@ use std::{error::Error, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 
+/// Represents any error that can happen on the server.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServerError {
     InvalidMaze(Box<str>),
@@ -12,6 +13,7 @@ pub enum ServerError {
 }
 
 impl ServerError {
+    /// Create a transmission [`ServerError`].
     pub fn transmission<S>(str: S) -> Self
     where
         S: Into<Box<str>>,
@@ -19,6 +21,7 @@ impl ServerError {
         ServerError::Transmission(str.into())
     }
 
+    /// Create a transmission error [`Result`].
     pub fn transmission_error<S, R>(str: S) -> Result<R, ServerError>
     where
         S: Into<Box<str>>,
@@ -26,6 +29,7 @@ impl ServerError {
         Err(Self::transmission(str))
     }
 
+    /// Create a invalid maze [`ServerError`].
     pub fn invalid_maze<S>(str: S) -> Self
     where
         S: Into<Box<str>>,
@@ -33,6 +37,7 @@ impl ServerError {
         ServerError::InvalidMaze(str.into())
     }
 
+    /// Create a invalid maze error [`Result`].
     pub fn invalid_maze_error<S, R>(str: S) -> Result<R, ServerError>
     where
         S: Into<Box<str>>,
@@ -40,6 +45,7 @@ impl ServerError {
         Err(Self::invalid_maze(str))
     }
 
+    /// Map an [`Error`] into a [`ServerError`]
     pub fn other<E>(err: E) -> ServerError
     where
         E: Error,
@@ -47,6 +53,7 @@ impl ServerError {
         ServerError::Other(err.to_string().into_boxed_str())
     }
 
+    /// Map an [`Error`] into a [`ServerError`] as a [`Result`]
     pub fn other_error<E, R>(err: E) -> Result<R, ServerError>
     where
         E: Error,
@@ -92,7 +99,9 @@ impl Display for ServerError {
             ServerError::Transmission(msg) => write!(f, "Transmission: {}", msg),
             ServerError::Other(msg) => write!(f, "Other: {}", msg),
             ServerError::SerializerError(msg) => write!(f, "Serialization: {}", msg),
-            ServerError::AlreadyConnected => write!(f, "A client with this UUID is already connected !"),
+            ServerError::AlreadyConnected => {
+                write!(f, "A client with this UUID is already connected !")
+            }
         }
     }
 }

@@ -14,7 +14,7 @@ impl From<u8> for Tile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Maze {
     pub nb_column: u32,
@@ -83,7 +83,7 @@ impl Maze {
             nb_line: height,
             nest_column: nest_pos.0,
             nest_line: nest_pos.1,
-            tiles: tiles.clone().into(),
+            tiles: Box::from(tiles),
         })
     }
 
@@ -116,14 +116,14 @@ impl Display for Tile {
     }
 }
 
-impl Default for Maze {
-    fn default() -> Self {
-        Self {
-            nb_column: Default::default(),
-            nb_line: Default::default(),
-            nest_column: Default::default(),
-            nest_line: Default::default(),
-            tiles: Box::default(),
-        }
-    }
+pub fn generate_basic_maze(size: u32) -> Result<Maze, ServerError> {
+    let mut tiles_vec = vec![0u8; size as usize * size as usize];
+
+    let first_tile = tiles_vec.first_mut().unwrap();
+    *first_tile = 1 << 4; // nest
+
+    let last_tile = tiles_vec.last_mut().unwrap();
+    *last_tile = 1 << 5; // food
+
+    Maze::new(size, size, tiles_vec.as_slice())
 }
