@@ -36,7 +36,7 @@ pub struct InfoMessageBody {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveMessageBody {
-    pub direction: u32, //TODO: Use a more appropriate type for direction (enum ?).
+    pub direction: u8
 }
 
 /// Enumeration of all the possible messages formats.

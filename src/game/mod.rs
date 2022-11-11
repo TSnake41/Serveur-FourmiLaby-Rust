@@ -1,5 +1,9 @@
+mod logic;
+pub mod state;
+
 use crate::{
     error::ServerError,
+    game::state::PlayerInfo,
     maze::Maze,
     message::types::{InfoMessageBody, Message},
 };
@@ -7,7 +11,7 @@ use crate::{
 use std::{
     collections::HashMap,
     sync::{
-        mpsc::{self, sync_channel, Receiver, Sender},
+        mpsc::{self, Receiver, Sender},
         Arc, Mutex,
     },
     thread,
@@ -15,6 +19,8 @@ use std::{
 };
 
 use uuid::Uuid;
+
+use self::state::GameState;
 
 /// The kind of message that can be sent to a game session channel.
 pub enum GameSessionMessageKind {
@@ -33,38 +39,18 @@ pub struct GameSessionInfo {
     pub maze: Maze,
 }
 
-/// The player information
-struct PlayerInfo {
-    channel: Option<Sender<Message>>,
-    position: (u32, u32),
-    has_food: bool,
-}
-
-impl PlayerInfo {
-    /// Create a player information using maze informations.
-    fn new(maze: &Maze, channel: Sender<Message>) -> Self {
-        Self {
-            channel: Some(channel),
-            position: (maze.nest_column, maze.nest_line),
-            has_food: false,
-        }
-    }
-}
+struct PlayerChannel(Option<Sender<Message>>);
 
 /// A game session.
 /// This instance should be only used by a single thread.
 pub struct GameSession {
-    maze: Maze,
-    players: HashMap<Uuid, PlayerInfo>,
+    players: HashMap<Uuid, PlayerChannel>,
     channel: Receiver<GameSessionMessage>,
 
     /// Must be kept held to keep alive the weak lobby's [`std::sync::Weak`] refeference.
     _info: Arc<GameSessionInfo>,
 
-    /// pheromon may be sent though channels, use Arc::make_mut to make this object mutable
-    /// as needed while not needing to duplicate the whole vector each time we need a copy
-    /// of it by following a clone-on-write behaviour.
-    pheromon: Arc<Box<[f32]>>,
+    state: GameState,
 
     /// Internal instance UUID, used for debugging.
     uuid: Uuid,
@@ -72,87 +58,80 @@ pub struct GameSession {
 
 /// Try sending [message] to channel (if it exists), otherwise, invalidates the channel.
 fn try_sending_to_channel(
-    channel: &mut Option<Sender<Message>>,
+    channel: &mut PlayerChannel,
     message: Message,
     uuid: &Uuid,
     session_uuid: &Uuid,
 ) {
     // If the player has an active channel.
-    if let Some(sender) = channel {
+    if let Some(sender) = &channel.0 {
         // Try sending a info message.
         if sender.send(message).is_err() {
             // We can't send message to channel, invalidate the channel.
-            eprintln!("{} disconnected the session {}", uuid, session_uuid);
+            eprintln!("{}: player {uuid} disconnected", session_uuid.as_braced());
 
-            channel.take();
+            channel.0.take();
         }
     }
 }
 
 impl GameSession {
     /// Creates a new [`GameSession`].
-    pub fn new(maze: Maze) -> (Self, Arc<GameSessionInfo>) {
+    pub fn new(state: GameState) -> (Self, Arc<GameSessionInfo>) {
         let (sender, receiver) = mpsc::channel::<GameSessionMessage>();
         let info = Arc::new(GameSessionInfo {
             channel: sender.into(),
-            maze: maze.clone(),
+            maze: state.maze.clone(),
         });
 
-        let pheromon: Vec<f32> = vec![0f32; maze.nb_column as usize * maze.nb_line as usize];
+        // Build player channels info using state players (assume not connected).
+        let players: HashMap<Uuid, PlayerChannel> = state
+            .players
+            .iter()
+            .map(|(uuid, _)| (*uuid, PlayerChannel(None)))
+            .collect();
 
         (
             Self {
-                maze,
-                players: HashMap::with_capacity(8),
+                players,
+                state,
                 uuid: Uuid::new_v4(),
                 channel: receiver,
                 _info: info.clone(),
-                pheromon: pheromon.into_boxed_slice().into(),
             },
             info,
         )
     }
 
     /// Process a client message.
-    fn process_client_message(&mut self, uuid: &Uuid, message: &Message) {
-        let player = self
-            .players
+    pub fn process_player_message(&mut self, uuid: &Uuid, message: &Message) {
+        let (players, state) = (&mut self.players, &mut self.state);
+
+        let channel = players
             .get_mut(uuid)
-            .expect("Player must exists to be able to send message");
+            .expect("Player must exist to be able to send message");
 
-        /*
-        NOTE: Due to player being mutably borrowed, we can't modify `self.players` directly,
-              in case we want to modify players in some way, we must use self.channel
-              to alter the game state in one of the next frames.
+        assert!(channel.0.is_some(), "Channel must exist to be able to receive the feedback. Has recv client channel panicked ?");
 
-        This is a guarantee this processing will not have side effects to the
-        other players, and potentially, to the player we are actually processing.
-
-        Note that it could be circunvented by allowing interior mutability through a [`UnsafeCell`].
-        */
-
-        match message {
-            Message::Move(move_body) => {
-                assert!(player.channel.is_some(), "Channel must exist to be able to receive the feedback. Has recv client channel panicked ?");
-
-                // TODO: game logic
-
-                // Send player info
+        match state.process_message(uuid, message) {
+            Ok(info) => {
                 try_sending_to_channel(
-                    &mut player.channel,
+                    channel,
                     Message::Info(InfoMessageBody {
-                        player_column: player.position.0,
-                        player_line: player.position.1,
-                        player_has_food: player.has_food,
-                        pheromon: self.pheromon.clone(), // TODO
+                        player_column: info.position.0,
+                        player_line: info.position.1,
+                        player_has_food: info.has_food,
+                        pheromon: self.state.pheromon.clone(), // TODO
                     }),
                     uuid,
                     &self.uuid,
                 );
             }
-            _ => {
+            
+            // Inform the player of an unexpected message.
+            Err(ServerError::UnexpectedParameter) => {
                 try_sending_to_channel(
-                    &mut player.channel,
+                    channel,
                     Message::Unexpected {
                         expected: vec!["move".into()],
                         received: message.clone().into(),
@@ -160,6 +139,9 @@ impl GameSession {
                     uuid,
                     &self.uuid,
                 );
+            }
+            Err(e) => {
+                eprintln!("Internal server error: {e:?}");
             }
         }
     }
@@ -174,16 +156,18 @@ impl GameSession {
     fn init_player(&mut self, uuid: &Uuid, sender: Sender<Message>) -> Result<(), ServerError> {
         // Check if the player exists in the session.
         match self.players.get_mut(uuid) {
-            Some(player) => {
+            Some(channel) => {
                 // A player with this UUID exists.
-                match &mut player.channel {
+                match &mut channel.0 {
                     Some(_) => {
                         // A channel is already set, a client with this UUID is already connected.
                         Err(ServerError::AlreadyConnected)
                     }
                     None => {
+                        println!("{}: {} reconnected", self.uuid.as_braced(), uuid);
+
                         // Rebind the player channel using sender.
-                        let _ = player.channel.replace(sender);
+                        let _ = channel.0.replace(sender);
 
                         Ok(())
                     }
@@ -191,9 +175,14 @@ impl GameSession {
             }
             None => {
                 // Initialize the player info using the session maze, then add this player to the session.
+                println!("{}: {} connected", self.uuid.as_braced(), uuid);
+
+                let _ = self.players.insert(*uuid, PlayerChannel(Some(sender)));
+
                 let _ = self
+                    .state
                     .players
-                    .insert(*uuid, PlayerInfo::new(&self.maze, sender));
+                    .insert(*uuid, PlayerInfo::new(&self.state.maze).into());
 
                 Ok(())
             }
@@ -206,14 +195,14 @@ impl GameSession {
         let sender = self._info.channel.lock().unwrap().clone();
         thread::Builder::new()
             .name(format!("GameSession updater {}", self.uuid))
-            .spawn(move || loop {
-                thread::sleep(Duration::from_secs(1));
-                sender
-                    .send(GameSessionMessage(
+            .spawn(move || -> Result<(), ServerError> {
+                loop {
+                    thread::sleep(Duration::from_secs(1));
+                    sender.send(GameSessionMessage(
                         uuid::Uuid::default(),
                         GameSessionMessageKind::UpdateAllPlayers,
-                    ))
-                    .unwrap();
+                    ))?;
+                }
             })
             .unwrap();
 
@@ -223,7 +212,7 @@ impl GameSession {
 
             match kind {
                 GameSessionMessageKind::ClientMessage(message) => {
-                    self.process_client_message(&uuid, &message)
+                    self.process_player_message(&uuid, &message)
                 }
                 GameSessionMessageKind::InitializePlayer(sender) => {
                     if let Err(e) = self.init_player(&uuid, sender.clone()) {
@@ -233,18 +222,27 @@ impl GameSession {
                 }
                 GameSessionMessageKind::UpdateAllPlayers => {
                     // We may need to invalidate the player channel if a send fails.
-                    self.players.iter_mut().for_each(|(uuid, info)| {
-                        try_sending_to_channel(
-                            &mut info.channel,
-                            Message::Info(InfoMessageBody {
-                                player_column: info.position.0,
-                                player_line: info.position.1,
-                                player_has_food: info.has_food,
-                                pheromon: self.pheromon.clone(), // TODO
-                            }),
-                            uuid,
-                            &self.uuid,
-                        );
+
+                    //TODO: Consider another way to end the game.
+                    if self.players.iter().all(|(_, channel)| channel.0.is_none()) {
+                        println!("{}: No active player, stopping", self.uuid.as_braced());
+                        return Ok(());
+                    }
+
+                    self.players.iter_mut().for_each(|(uuid, channel)| {
+                        if let Some(info) = self.state.players.get(uuid) {
+                            try_sending_to_channel(
+                                channel,
+                                Message::Info(InfoMessageBody {
+                                    player_column: info.position.0,
+                                    player_line: info.position.1,
+                                    player_has_food: info.has_food,
+                                    pheromon: self.state.pheromon.clone(), // TODO
+                                }),
+                                uuid,
+                                &self.uuid,
+                            );
+                        }
                     })
                 }
             }
@@ -252,7 +250,7 @@ impl GameSession {
     }
 
     /// Start in a new thread the game session loop.
-    pub fn start_new(maze: Maze) -> Result<Arc<GameSessionInfo>, ServerError> {
+    pub fn start_new(state: GameState) -> Result<Arc<GameSessionInfo>, ServerError> {
         // TODO: Make it asynchronous using lobby's channel ?
 
         // Send SessionInfo through a channel.
@@ -263,14 +261,16 @@ impl GameSession {
         let _ = thread::Builder::new()
             .name(format!("Game Instance {}", session_uuid.as_braced()))
             .spawn(move || {
-                let (mut session, info) = Self::new(maze);
+                let (mut session, info) = Self::new(state);
                 session.uuid = session_uuid;
 
                 sender.send(info).unwrap();
 
                 if let Err(e) = session.run() {
-                    eprintln!("GameSession error : {}", e);
+                    eprintln!("{}: error {e}", session_uuid.as_braced());
                 }
+
+                println!("{}: terminated", session_uuid.as_braced());
             })?;
 
         let info = reader.recv()?;

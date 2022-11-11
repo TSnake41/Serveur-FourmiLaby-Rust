@@ -34,8 +34,7 @@ pub fn read_message_raw<R: Read>(reader: &mut R) -> Result<Box<[u8]>, ServerErro
 
     if data_len > MAX_MESSAGE_SIZE {
         return ServerError::transmission_error(format!(
-            "Received message is too big ! ({} > {})",
-            data_len, MAX_MESSAGE_SIZE
+            "Received message is too big ! ({data_len} > {MAX_MESSAGE_SIZE})"
         ));
     }
 

@@ -23,7 +23,7 @@ use std::{
     net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream},
     str::FromStr,
     thread,
-    time::Duration,
+    time::{self, Duration},
 };
 
 use error::ServerError;
@@ -35,7 +35,7 @@ use message::{
 use crate::message::types::MoveMessageBody;
 
 fn main() -> Result<(), ServerError> {
-    std::thread::spawn(|| -> Result<_, ServerError> {
+    thread::spawn(|| -> Result<_, ServerError> {
         let lobby = lobby::Lobby::new();
 
         lobby.run(TcpListener::bind(
@@ -45,43 +45,55 @@ fn main() -> Result<(), ServerError> {
         Ok(())
     });
 
-    std::thread::sleep(std::time::Duration::from_secs(4));
+    thread::sleep(time::Duration::from_secs(4));
 
-    for i in 0..1500 {
-        println!("{}", i);
-        thread::spawn(|| -> ! {
+    for i in 0..20 {
+        thread::spawn(|| {
             let mut stream =
                 TcpStream::connect(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080)).unwrap();
 
-            println!(
-                "{:?}",
-                write_message(
-                    &mut stream,
-                    &Message::Join(JoinMessageBody {
-                        difficulty: 0,
-                        player_id: None,
-                    }),
-                )
-            );
+            write_message(
+                &mut stream,
+                &Message::Join(JoinMessageBody {
+                    difficulty: 0,
+                    player_id: None,
+                }),
+            )
+            .unwrap();
 
-            loop {
+            for _ in 0..200 {
                 read_message(&mut stream).unwrap();
 
-                for i in 1..24 {
+                for i in 0..20 {
                     write_message(
                         &mut stream,
-                        &Message::Move(MoveMessageBody { direction: 0 }),
+                        &Message::Move(MoveMessageBody {
+                            direction: match i {
+                                0..=4 => 2, // Right
+                                5..=9 => 0, // Down
+                                10..=14 => 3, // Left
+                                15..=20 => 1, // Up
+                                _ => 5
+                            }
+                        }),
                     )
                     .unwrap();
 
-                    thread::sleep(Duration::from_millis(30));
+                    thread::sleep(Duration::from_millis(60));
 
-                    read_message(&mut stream).unwrap();
+                    let info = read_message(&mut stream).unwrap();
+
+                    if let Message::Info(body) = info {
+                        /*println!(
+                            "Pos: ({},{}), has_food={}",
+                            body.player_column, body.player_line, body.player_has_food
+                        );*/
+                    }
                 }
             }
         });
 
-        thread::sleep(Duration::from_millis(15));
+        thread::sleep(Duration::from_millis(50));
     }
 
     thread::sleep(Duration::MAX);

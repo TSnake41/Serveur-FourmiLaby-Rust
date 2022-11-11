@@ -15,7 +15,7 @@ impl Lobby {
     fn lobby(send: &Sender<LobbyMessage>, listener: TcpListener) -> ! {
         loop {
             let (mut stream, addr) = listener.accept().unwrap();
-            println!("{} connected", addr);
+            println!("[{addr}] connected");
 
             let channel = send.clone();
 

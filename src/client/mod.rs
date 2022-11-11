@@ -103,7 +103,7 @@ fn client_session_negociate(
             // Duplicate the socket into a write end.
             let mut sender_client = client.try_clone().unwrap();
 
-            // Fetch the game session channel then notify the game session of a this new player.
+            // Fetch the game session channel then notify the game session of this new player.
             let game_session_channel = game_session.channel.lock()?.clone();
 
             game_session_channel.send(GameSessionMessage(

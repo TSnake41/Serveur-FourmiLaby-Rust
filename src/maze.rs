@@ -54,9 +54,7 @@ impl Maze {
     pub fn new(width: u32, height: u32, tiles: &[u8]) -> Result<Self, ServerError> {
         if (width * height) as usize != tiles.len() {
             return ServerError::invalid_maze_error(format!(
-                "width * height doesn't match with tiles.len() ({} * {} != {})",
-                width,
-                height,
+                "width * height doesn't match with tiles.len() ({width} * {height} != {})",
                 tiles.len()
             ));
         }
@@ -88,7 +86,7 @@ impl Maze {
     }
 
     pub fn get_tile(&self, x: u32, y: u32) -> Option<Tile> {
-        if x > self.nb_column || y > self.nb_line {
+        if x >= self.nb_column || y >= self.nb_line {
             None
         } else {
             self.tiles

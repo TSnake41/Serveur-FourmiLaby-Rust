@@ -4,7 +4,7 @@ pub mod message;
 use self::message::MatchmakingInfo;
 use crate::{
     error::ServerError,
-    game::{self, GameSessionInfo},
+    game::{self, state::GameState, GameSessionInfo},
     maze::generate_basic_maze,
     message::types::JoinMessageBody,
 };
@@ -47,7 +47,13 @@ impl Lobby {
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
         // TODO: Consider criteras
-        game::GameSession::start_new(generate_basic_maze(5)?)
+        let session = game::GameSession::start_new(GameState::new(generate_basic_maze(5)?));
+
+        if let Ok(info) = &session {
+            self.games.push(Arc::downgrade(info));
+        }
+
+        session
     }
 
     /// Find a suitable game for the JoinMessage, try to reconnect to session if UUID is specified in message.
@@ -100,7 +106,7 @@ impl Lobby {
             .games
             .iter()
             .enumerate()
-            .rev() // reverse to preserve indices which removing
+            .rev() // reverse to preserve indices while removing
             .filter_map(|(i, session)| {
                 if session.upgrade().is_none() {
                     Some(i)
