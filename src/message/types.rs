@@ -30,6 +30,7 @@ pub struct InfoMessageBody {
     pub player_column: u32,
     pub player_line: u32,
     pub player_has_food: bool,
+    #[allow(clippy::redundant_allocation)] // Needs to be boxed for Arc::make_mut() (makes [f32] Clone).
     pub pheromon: Arc<Box<[f32]>>,
 }
 

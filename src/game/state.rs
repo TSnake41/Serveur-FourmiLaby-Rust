@@ -31,6 +31,7 @@ pub struct GameState {
     /// pheromon may be sent though channels, use Arc::make_mut to make this object mutable
     /// as needed while not needing to duplicate the whole vector each time we need a copy
     /// of it by following a clone-on-write behaviour.
+    #[allow(clippy::redundant_allocation)] // Needs to be boxed for Arc::make_mut() (makes [f32] Clone).
     pub pheromon: Arc<Box<[f32]>>,
 }
 

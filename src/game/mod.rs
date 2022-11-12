@@ -1,4 +1,7 @@
+/// Game logic
 mod logic;
+
+/// The game state than can be serialized.
 pub mod state;
 
 use crate::{
@@ -182,7 +185,7 @@ impl GameSession {
                 let _ = self
                     .state
                     .players
-                    .insert(*uuid, PlayerInfo::new(&self.state.maze).into());
+                    .insert(*uuid, PlayerInfo::new(&self.state.maze));
 
                 Ok(())
             }

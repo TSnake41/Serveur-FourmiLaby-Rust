@@ -47,7 +47,7 @@ fn main() -> Result<(), ServerError> {
 
     thread::sleep(time::Duration::from_secs(4));
 
-    for i in 0..20 {
+    for i in 0..200 {
         thread::spawn(|| {
             let mut stream =
                 TcpStream::connect(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080)).unwrap();
@@ -61,10 +61,10 @@ fn main() -> Result<(), ServerError> {
             )
             .unwrap();
 
-            for _ in 0..200 {
+            for _ in 0..25 {
                 read_message(&mut stream).unwrap();
 
-                for i in 0..20 {
+                for i in 0..=20 {
                     write_message(
                         &mut stream,
                         &Message::Move(MoveMessageBody {
@@ -79,7 +79,7 @@ fn main() -> Result<(), ServerError> {
                     )
                     .unwrap();
 
-                    thread::sleep(Duration::from_millis(60));
+                    thread::sleep(Duration::from_millis(40));
 
                     let info = read_message(&mut stream).unwrap();
 
@@ -90,10 +90,12 @@ fn main() -> Result<(), ServerError> {
                         );*/
                     }
                 }
+
+                read_message(&mut stream).unwrap();
             }
         });
 
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(Duration::from_millis(15));
     }
 
     thread::sleep(Duration::MAX);
