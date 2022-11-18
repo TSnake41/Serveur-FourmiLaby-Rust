@@ -25,11 +25,18 @@ use uuid::Uuid;
 
 use self::state::GameState;
 
+/// The delay between each update all ticks.
+const UPDATE_PLAYERS_DELAY: Duration = Duration::from_secs(1);
+
+/// The delay between each pheromon update.
+const PHEROMON_UPDATE_DELAY: Duration = Duration::from_secs(5);
+
 /// The kind of message that can be sent to a game session channel.
 pub enum GameSessionMessageKind {
     InitializePlayer(Sender<Message>),
     ClientMessage(Message),
     UpdateAllPlayers,
+    UpdatePheromon,
 }
 
 /// A game session message sent to a game session channel.
@@ -51,7 +58,7 @@ pub struct GameSession {
     players: HashMap<Uuid, PlayerChannel>,
     channel: Receiver<GameSessionMessage>,
 
-    /// Must be kept held to keep alive the weak lobby's [`std::sync::Weak`] refeference.
+    /// Must be kept held to keep alive the weak lobby's [`std::sync::Weak`] reference.
     _info: Arc<GameSessionInfo>,
 
     state: GameState,
@@ -131,7 +138,7 @@ impl GameSession {
                     &self.uuid,
                 );
             }
-            
+
             // Inform the player of an unexpected message.
             Err(ServerError::UnexpectedParameter) => {
                 try_sending_to_channel(
@@ -195,14 +202,16 @@ impl GameSession {
 
     /// Run the game session loop.
     pub fn run(&mut self) -> Result<(), ServerError> {
-        // Create update all thread
         let sender = self._info.channel.lock().unwrap().clone();
+
+        // Create the update all notifier thread
+        let player_updater_channel = sender.clone();
         thread::Builder::new()
             .name(format!("GameSession updater {}", self.uuid))
             .spawn(move || -> Result<(), ServerError> {
                 loop {
-                    thread::sleep(Duration::from_secs(1));
-                    sender.send(GameSessionMessage(
+                    thread::sleep(UPDATE_PLAYERS_DELAY);
+                    player_updater_channel.send(GameSessionMessage(
                         uuid::Uuid::default(),
                         GameSessionMessageKind::UpdateAllPlayers,
                     ))?;
@@ -210,6 +219,25 @@ impl GameSession {
             })
             .unwrap();
 
+        // Create the pheromon update notifier thread
+        let pheromon_updater_channel = sender.clone();
+        thread::Builder::new()
+            .name(format!("Pheromon updater {}", self.uuid))
+            .spawn(move || -> Result<(), ServerError> {
+                loop {
+                    thread::sleep(PHEROMON_UPDATE_DELAY);
+                    pheromon_updater_channel.send(GameSessionMessage(
+                        uuid::Uuid::default(),
+                        GameSessionMessageKind::UpdatePheromon,
+                    ))?;
+                }
+            })
+            .unwrap();
+
+        self.run_loop()
+    }
+
+    fn run_loop(&mut self) -> Result<(), ServerError> {
         loop {
             let session_msg = self.channel.recv()?;
             let (uuid, kind) = (session_msg.0, session_msg.1);
@@ -225,7 +253,7 @@ impl GameSession {
                     }
                 }
                 GameSessionMessageKind::UpdateAllPlayers => {
-                    // We may need to invalidate the player channel if a send fails.
+                    // NOTE: We may need to invalidate the player channel if a send fails.
 
                     //TODO: Consider another way to end the game.
                     if self.players.iter().all(|(_, channel)| channel.0.is_none()) {
@@ -249,13 +277,14 @@ impl GameSession {
                         }
                     })
                 }
+                GameSessionMessageKind::UpdatePheromon => self.state.update_pheromon(),
             }
         }
     }
 
     /// Start in a new thread the game session loop.
     pub fn start_new(state: GameState) -> Result<Arc<GameSessionInfo>, ServerError> {
-        // TODO: Make it asynchronous using lobby's channel ?
+        // TODO: Maybe make it asynchronous using lobby's channel ?
 
         // Send SessionInfo through a channel.
         let (sender, reader) = mpsc::sync_channel::<Arc<GameSessionInfo>>(1);

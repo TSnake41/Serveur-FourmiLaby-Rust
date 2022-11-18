@@ -1,3 +1,5 @@
+//! Manages the [`ServerError`] type that handle all kind of errors that may happen.
+
 use std::{error::Error, fmt::Display};
 
 use serde::{Deserialize, Serialize};

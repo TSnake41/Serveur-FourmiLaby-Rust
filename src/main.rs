@@ -1,4 +1,3 @@
-/// Manages the ServerError type that handle all kind of errors that may happen.
 mod error;
 
 /// Set of APIs to interact with some specific external libraries.
@@ -13,7 +12,7 @@ mod message;
 /// The game session.
 mod game;
 
-// Lobby creation and loops.
+/// Lobby creation and loops.
 mod lobby;
 
 /// The client session management.
@@ -47,7 +46,7 @@ fn main() -> Result<(), ServerError> {
 
     thread::sleep(time::Duration::from_secs(4));
 
-    for i in 0..50 {
+    for i in 0..1 {
         thread::spawn(|| {
             let mut stream =
                 TcpStream::connect(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080)).unwrap();
@@ -84,10 +83,7 @@ fn main() -> Result<(), ServerError> {
                     let info = read_message(&mut stream).unwrap();
 
                     if let Message::Info(body) = info {
-                        /*println!(
-                            "Pos: ({},{}), has_food={}",
-                            body.player_column, body.player_line, body.player_has_food
-                        );*/
+                        println!("{body:?}");
                     }
                 }
 
