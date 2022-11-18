@@ -37,6 +37,7 @@ pub struct GameSessionMessage(pub Uuid, pub GameSessionMessageKind);
 
 /// The information associated to a game session shared between lobby and the game session.
 /// May be sent to a client session.
+#[derive(Debug)]
 pub struct GameSessionInfo {
     pub channel: Mutex<Sender<GameSessionMessage>>,
     pub maze: Maze,
@@ -59,7 +60,7 @@ pub struct GameSession {
     uuid: Uuid,
 }
 
-/// Try sending [message] to channel (if it exists), otherwise, invalidates the channel.
+/// Try sending `message` to channel (if it exists), otherwise, invalidates the channel.
 fn try_sending_to_channel(
     channel: &mut PlayerChannel,
     message: Message,
@@ -150,9 +151,9 @@ impl GameSession {
     }
 
     /**
-    Initialize the player [uuid] using the provided [sender].
+    Initialize the player [`Uuid`] using the provided [`Sender<Message>`].
 
-    If the player already exists in the session (e.g was previously connected), reset its channel using [sender].
+    If the player already exists in the session (e.g was previously connected), reset its channel using `sender`.
 
     Otherwise, set player at initial nest coordinates.
     */

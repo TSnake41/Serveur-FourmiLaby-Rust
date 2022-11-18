@@ -1,10 +1,17 @@
-use crate::{client, error::ServerError, lobby::message::LobbyMessage};
+use crate::{
+    client,
+    error::ServerError,
+    lobby::message::{LobbyMessage, MatchmakingInfo},
+};
 
 use super::Lobby;
 
 use std::{
     net::TcpListener,
-    sync::mpsc::{self, Sender},
+    sync::{
+        mpsc::{self, Sender},
+        Arc,
+    },
     thread,
     time::Duration,
 };
@@ -50,10 +57,14 @@ impl Lobby {
 
             match msg {
                 LobbyMessage::Matchmaking(body, channel) => {
-                    channel
-                        .lock()
-                        .unwrap()
-                        .send(self.find_suitable_game(&body))?;
+                    let info = self.find_suitable_game(&body);
+
+                    channel.lock().unwrap().send(info.clone())?;
+
+                    // Register player UUID if it gets connected.
+                    if let MatchmakingInfo::JoinedGame(uuid, session) = info {
+                        self.players.insert(uuid, Arc::downgrade(&session));
+                    }
                 }
                 LobbyMessage::Housekeep => self.housekeep(),
             }

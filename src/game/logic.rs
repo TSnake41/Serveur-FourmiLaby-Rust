@@ -69,6 +69,7 @@ pub fn update_player_position(
 }
 
 impl GameState {
+    /// Process the movement of a player, triggering appropriate actions.
     pub fn process_movement(
         &mut self,
         mut player: PlayerInfo,
@@ -80,7 +81,7 @@ impl GameState {
             if player.has_food && tile.is_nest() {
                 player.has_food = !player.has_food;
 
-                println!("TODO: Food put into nest");
+                //println!("TODO: Food put into nest");
             }
 
             if tile.is_food() {

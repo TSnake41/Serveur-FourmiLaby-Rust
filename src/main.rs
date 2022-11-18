@@ -47,7 +47,7 @@ fn main() -> Result<(), ServerError> {
 
     thread::sleep(time::Duration::from_secs(4));
 
-    for i in 0..200 {
+    for i in 0..50 {
         thread::spawn(|| {
             let mut stream =
                 TcpStream::connect(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8080)).unwrap();
@@ -61,7 +61,7 @@ fn main() -> Result<(), ServerError> {
             )
             .unwrap();
 
-            for _ in 0..25 {
+            for _ in 0..5 {
                 read_message(&mut stream).unwrap();
 
                 for i in 0..=20 {

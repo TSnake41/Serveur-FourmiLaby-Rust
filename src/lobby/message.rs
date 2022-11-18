@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 /// Message sent by the lobby thread to a client thread to indicate that
 /// the client has joined (or not) the game (specified by [`MatchmakingInfo::JoinedGame`]).
+#[derive(Clone)]
 pub enum MatchmakingInfo {
     JoinedGame(Uuid, Arc<GameSessionInfo>),
     ExpiredUuid,

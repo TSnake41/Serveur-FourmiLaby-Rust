@@ -27,10 +27,6 @@ pub fn client_session_init(
         // Received something else
         // Send Unexpected message error to client.
         Ok(unexpected) => {
-            let err = Err(ServerError::Transmission(
-                "Unexpected message received".into(),
-            ));
-
             write_message(
                 client,
                 &Message::Unexpected {
@@ -39,7 +35,9 @@ pub fn client_session_init(
                 },
             )?;
 
-            err
+            Err(ServerError::Transmission(
+                "Unexpected message received".into(),
+            ))
         }
 
         // Something went wrong during read_message()

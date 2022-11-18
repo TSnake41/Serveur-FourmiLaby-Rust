@@ -4,7 +4,7 @@ mod cmaze;
 use self::cmaze::CMaze;
 use crate::{error::ServerError, maze::Maze};
 
-/// Parameters asked by the maze generator.
+/// Parameters needed by the maze generator.
 #[repr(C)]
 pub struct ParamMaze {
     pub nb_column: u32,
@@ -20,6 +20,7 @@ extern "C" {
     fn freeMaze(maze: *mut *const CMaze);
 }
 
+/// Generate a [`Maze`] using the maze generator.
 pub fn generate_maze(param: &ParamMaze) -> Result<Maze, ServerError> {
     // unsafe ok because generateMaze shouldn't crash, param is non-null.
     let mut cmaze_ptr = unsafe { generateMaze(param as *const ParamMaze) };

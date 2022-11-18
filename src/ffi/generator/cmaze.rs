@@ -17,7 +17,7 @@ pub struct CMaze {
 /**
 Try converting a [`CMaze`] into a [`Maze`].
 
-Fails if the maze is considered invalid by [`Maze::new`].
+Fails if the maze is considered invalid by [`Maze::new()`].
 */
 impl TryInto<Maze> for &CMaze {
     type Error = ServerError;

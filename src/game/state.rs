@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{error::ServerError, maze::Maze, message::types::Message};
 
-/// The player information
+/// The player information (position, status, ...).
 #[derive(Clone, Copy)]
 pub struct PlayerInfo {
     pub position: (u32, u32),
@@ -23,6 +23,8 @@ impl PlayerInfo {
     }
 }
 
+/// Game state structure.
+/// This structure contains the immediate and serializable state of a game, that will change during the game life.
 pub struct GameState {
     /// Consider PlayerInfo as immutable in functions.
     pub players: HashMap<Uuid, PlayerInfo>,
@@ -36,6 +38,7 @@ pub struct GameState {
 }
 
 impl GameState {
+    /// Create a new initial game state from a specific [`Maze`].
     pub fn new(maze: Maze) -> Self {
         let pheromon = vec![0f32; maze.nb_column as usize * maze.nb_line as usize];
 
@@ -46,20 +49,21 @@ impl GameState {
         }
     }
 
+    /// Process a [`Message`] from the player pointed by its [`Uuid`].
     pub fn process_message(
         &mut self,
         uuid: &Uuid,
         msg: &Message,
     ) -> Result<PlayerInfo, ServerError> {
         // Do note that this is a copy of the player info.
-        let player = *self
+        let player_info = *self
             .players
             .get(uuid)
             .expect("Player is missing from the game state.");
 
         match msg {
             Message::Move(move_msg) => {
-                let new_player_info = self.process_movement(player, move_msg);
+                let new_player_info = self.process_movement(player_info, move_msg);
 
                 // Update player info.
                 *self

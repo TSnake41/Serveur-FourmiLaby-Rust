@@ -84,40 +84,10 @@ impl Lobby {
         // collection.drain_filter is unstable as of Rust 1.62
 
         // Remove all player UUID that references games that doesn't exist anymore.
-        let to_remove: Box<[Uuid]> = self
-            .players
-            .iter()
-            .filter_map(|(uuid, session)| {
-                if session.upgrade().is_none() {
-                    Some(*uuid)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        to_remove.iter().for_each(|uuid| {
-            self.players.remove(uuid);
-        });
+        self.players
+            .retain(|_, session| session.upgrade().is_some());
 
         // Remove all session references for games that doesn't exist anymore.
-        // This is really tricky.
-        let to_remove_vec: Box<[usize]> = self
-            .games
-            .iter()
-            .enumerate()
-            .rev() // reverse to preserve indices while removing
-            .filter_map(|(i, session)| {
-                if session.upgrade().is_none() {
-                    Some(i)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        to_remove_vec.iter().for_each(|i| {
-            self.games.remove(*i);
-        });
+        self.games.retain(|session| session.upgrade().is_some());
     }
 }
