@@ -1,6 +1,7 @@
-use crate::{error::ServerError, maze::Maze};
-
+//! C representation of a maze, used by C API.
 use core::slice;
+
+use crate::{error::ServerError, maze::Maze};
 
 /// A maze as represented as a C structure.
 #[repr(C)]

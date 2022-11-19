@@ -1,5 +1,4 @@
-//! The game state.
-
+//! The game state than can be serialized.
 use std::{collections::HashMap, sync::Arc};
 
 use uuid::Uuid;

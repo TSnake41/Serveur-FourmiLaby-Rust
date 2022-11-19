@@ -1,5 +1,4 @@
 //! Manages the [`ServerError`] type that handle all kind of errors that may happen.
-
 use std::{error::Error, fmt::Display};
 
 use serde::{Deserialize, Serialize};
@@ -16,7 +15,7 @@ pub enum ServerError {
 }
 
 impl ServerError {
-    /// Create a transmission [`ServerError`].
+    /// Create a [`ServerError::Transmission`]  [`ServerError`].
     pub fn transmission<S>(str: S) -> Self
     where
         S: Into<Box<str>>,
@@ -24,7 +23,7 @@ impl ServerError {
         ServerError::Transmission(str.into())
     }
 
-    /// Create a transmission error [`Result`].
+    /// Create a [`ServerError::Transmission`] error [`Result`].
     pub fn transmission_error<S, R>(str: S) -> Result<R, ServerError>
     where
         S: Into<Box<str>>,
@@ -40,7 +39,7 @@ impl ServerError {
         ServerError::InvalidMaze(str.into())
     }
 
-    /// Create a invalid maze error [`Result`].
+    /// Create a [`ServerError::InvalidMaze`] error [`Result`].
     pub fn invalid_maze_error<S, R>(str: S) -> Result<R, ServerError>
     where
         S: Into<Box<str>>,

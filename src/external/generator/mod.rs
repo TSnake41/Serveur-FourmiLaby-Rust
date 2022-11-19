@@ -1,4 +1,4 @@
-/// C representation of a maze, used by C API.
+//! Interface to an external maze generator.
 mod cmaze;
 
 use self::cmaze::CMaze;

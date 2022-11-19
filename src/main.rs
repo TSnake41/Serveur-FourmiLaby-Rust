@@ -1,21 +1,9 @@
 mod error;
-
-/// Set of APIs to interact with some specific external libraries.
-mod ffi;
-
-/// Maze representation and utilities.
+mod external;
 mod maze;
-
-/// Message and protocol implementation between client and server.
 mod message;
-
-/// The game session.
 mod game;
-
-/// Lobby creation and loops.
 mod lobby;
-
-/// The client session management.
 mod client;
 
 use std::{
@@ -28,10 +16,8 @@ use std::{
 use error::ServerError;
 use message::{
     transmit::{read_message, write_message},
-    types::{JoinMessageBody, Message},
+    types::{JoinMessageBody, Message, MoveMessageBody},
 };
-
-use crate::message::types::MoveMessageBody;
 
 fn main() -> Result<(), ServerError> {
     thread::spawn(|| -> Result<_, ServerError> {
@@ -68,12 +54,12 @@ fn main() -> Result<(), ServerError> {
                         &mut stream,
                         &Message::Move(MoveMessageBody {
                             direction: match i {
-                                0..=4 => 2, // Right
-                                5..=9 => 0, // Down
+                                0..=4 => 2,   // Right
+                                5..=9 => 0,   // Down
                                 10..=14 => 3, // Left
                                 15..=20 => 1, // Up
-                                _ => 5
-                            }
+                                _ => 5,
+                            },
                         }),
                     )
                     .unwrap();

@@ -1,3 +1,11 @@
+//! The client session management.
+use std::{
+    net::{Shutdown, TcpStream},
+    sync::mpsc::{self, Receiver, Sender},
+};
+
+use uuid::Uuid;
+
 use crate::{
     error::ServerError,
     game::{GameSessionMessage, GameSessionMessageKind},
@@ -7,13 +15,6 @@ use crate::{
         types::{JoinMessageBody, Message, OkMazeMessageBody},
     },
 };
-
-use std::{
-    net::{Shutdown, TcpStream},
-    sync::mpsc::{self, Receiver, Sender},
-};
-
-use uuid::Uuid;
 
 /// Instanciate a client negociation with with the lobby.
 pub fn client_session_init(

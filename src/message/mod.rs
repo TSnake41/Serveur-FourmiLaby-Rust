@@ -1,10 +1,4 @@
-/// # Transmission primitives
-///
-/// Transmission currently works using a u32 big-endian number that corresponds to
-/// the size of the payload message, followed by this payload message that is a JSON
-/// [`self::types::Message`] object.
-///
-pub mod transmit;
+//! Message and protocol implementation between client and server.
 
-/// Message structures.
+pub mod transmit;
 pub mod types;

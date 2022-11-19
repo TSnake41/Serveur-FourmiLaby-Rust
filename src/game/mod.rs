@@ -1,15 +1,6 @@
-/// Game logic
+//! The game session.
 mod logic;
-
-/// The game state than can be serialized.
 pub mod state;
-
-use crate::{
-    error::ServerError,
-    game::state::PlayerInfo,
-    maze::Maze,
-    message::types::{InfoMessageBody, Message},
-};
 
 use std::{
     collections::HashMap,
@@ -23,7 +14,12 @@ use std::{
 
 use uuid::Uuid;
 
-use self::state::GameState;
+use crate::{
+    error::ServerError,
+    game::state::{GameState, PlayerInfo},
+    maze::Maze,
+    message::types::{InfoMessageBody, Message},
+};
 
 /// The delay between each update all ticks.
 const UPDATE_PLAYERS_DELAY: Duration = Duration::from_secs(1);

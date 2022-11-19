@@ -1,10 +1,11 @@
-use crate::error::ServerError;
-
+//! Maze representation and utilities.
 use std::fmt::{Display, Write};
 
 use serde::{Deserialize, Serialize};
 
-/// A wrapped maze tile.
+use crate::error::ServerError;
+
+/// A wrapped [`Maze`] tile.
 #[derive(Debug)]
 pub struct Tile(u8);
 
@@ -14,6 +15,7 @@ impl From<u8> for Tile {
     }
 }
 
+/// A maze or "Labyrinth".
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Maze {
@@ -21,6 +23,22 @@ pub struct Maze {
     pub nb_line: u32,
     pub nest_column: u32,
     pub nest_line: u32,
+
+    /// Array of tiles, where each [`u8`] is an actual tile (that can be wrapped into a [`Tile`]).
+    /// Is `nb_column` * `nb_line` large.
+    ///
+    /// Follows this ordering :
+    /// ```text
+    /// +-+-+-+ x ->
+    /// |6|7|8|
+    /// +-+-+-+
+    /// |3|4|5|
+    /// +-+-+-+
+    /// |0|1|2|
+    /// +-+-+-+  Î y
+    ///
+    /// index = x + y * nb_column
+    /// ```
     pub tiles: Box<[u8]>,
 }
 
@@ -59,11 +77,17 @@ impl Maze {
             ));
         }
 
+        // Get the position of each nests.
         let nests: Vec<(u32, u32)> = tiles
             .iter()
-            .enumerate()
+            .enumerate() // get the index (=> position) of each tile
             .filter(|(_, tile)| Tile(**tile).is_nest())
-            .map(|(i, _)| ((i as u32) % width, (i as u32) / width))
+            .map(|(i, _)| {
+                (
+                    /* x: */ (i as u32) % width,
+                    /* y: */ (i as u32) / width,
+                )
+            })
             .collect();
 
         if nests.is_empty() {
@@ -87,8 +111,10 @@ impl Maze {
 
     pub fn get_tile(&self, x: u32, y: u32) -> Option<Tile> {
         if x >= self.nb_column || y >= self.nb_line {
+            // Out of bounds
             None
         } else {
+            // Get the tile, should exist.
             self.tiles
                 .get((x + y * self.nb_line) as usize)
                 .map(|tile| Tile(*tile))

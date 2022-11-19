@@ -1,7 +1,13 @@
+//! # Transmission primitives
+//!
+//! Transmission currently works using a u32 big-endian number that corresponds to
+//! the size of the payload message, followed by this payload message that is a JSON
+//! [`self::types::Message`] object.
+//! 
+use std::io::{Read, Write};
+
 use super::types::Message;
 use crate::error::ServerError;
-
-use std::io::{Read, Write};
 
 const MAX_MESSAGE_SIZE: u32 = 4 * 1024 * 1024; // 4 MiB
 

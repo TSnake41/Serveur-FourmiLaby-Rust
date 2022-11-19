@@ -1,3 +1,4 @@
+//! Message structures.
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
