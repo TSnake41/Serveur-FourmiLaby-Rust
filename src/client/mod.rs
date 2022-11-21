@@ -42,10 +42,7 @@ pub fn client_session_init(
         }
 
         // Something went wrong during read_message()
-        Err(err) => {
-            write_message(client, &Message::Error(err.clone()))?;
-            Err(err)
-        }
+        Err(err) => Err(err),
     };
 
     if let Err(err) = &res {

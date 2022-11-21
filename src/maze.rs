@@ -34,8 +34,8 @@ pub struct Maze {
     /// +-+-+-+
     /// |3|4|5|
     /// +-+-+-+
-    /// |0|1|2|
-    /// +-+-+-+  Î y
+    /// |0|1|2|  ^
+    /// +-+-+-+  | y
     ///
     /// index = x + y * nb_column
     /// ```
@@ -140,6 +140,7 @@ impl Display for Tile {
     }
 }
 
+/// Generate a basic `size*size` [`Maze`] with a nest at (0;0) and food at (size-1;size-1).
 pub fn generate_basic_maze(size: u32) -> Result<Maze, ServerError> {
     let mut tiles_vec = vec![0u8; size as usize * size as usize];
 

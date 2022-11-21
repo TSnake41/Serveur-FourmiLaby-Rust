@@ -128,7 +128,7 @@ impl GameSession {
                         player_column: info.position.0,
                         player_line: info.position.1,
                         player_has_food: info.has_food,
-                        pheromon: self.state.pheromon.clone(), // TODO
+                        pheromon: self.state.pheromon.clone(),
                     }),
                     uuid,
                     &self.uuid,
@@ -265,7 +265,7 @@ impl GameSession {
                                     player_column: info.position.0,
                                     player_line: info.position.1,
                                     player_has_food: info.has_food,
-                                    pheromon: self.state.pheromon.clone(), // TODO
+                                    pheromon: self.state.pheromon.clone(),
                                 }),
                                 uuid,
                                 &self.uuid,

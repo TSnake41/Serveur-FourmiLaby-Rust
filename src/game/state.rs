@@ -25,11 +25,11 @@ impl PlayerInfo {
 /// Game state structure.
 /// This structure contains the immediate and serializable state of a game, that will change during the game life.
 pub struct GameState {
-    /// Consider PlayerInfo as immutable in functions.
+    /// Consider [`PlayerInfo`] as immutable in functions.
     pub players: HashMap<Uuid, PlayerInfo>,
     pub maze: Maze,
 
-    /// pheromon may be sent though channels, use Arc::make_mut to make this object mutable
+    /// `pheromon` may be sent though channels, use [`Arc::make_mut`] to make this object mutable
     /// as needed while not needing to duplicate the whole vector each time we need a copy
     /// of it by following a clone-on-write behaviour.
     #[allow(clippy::redundant_allocation)]

@@ -51,7 +51,9 @@ pub fn read_message_raw<R: Read>(reader: &mut R) -> Result<Box<[u8]>, ServerErro
     Ok(data.into_boxed_slice())
 }
 
-///TODO: Use Read::take() and BufReader instead ?
+//TODO: Use Read::take() and BufReader instead ?
+
+/// Read a [`Message`]` from `reader` using the protocol.
 pub fn read_message<R: Read>(reader: &mut R) -> Result<Message, ServerError> {
     let data = read_message_raw(reader)?;
 
