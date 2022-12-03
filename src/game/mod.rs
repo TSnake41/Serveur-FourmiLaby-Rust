@@ -282,7 +282,7 @@ impl GameSession {
     pub fn start_new(state: GameState) -> Result<Arc<GameSessionInfo>, ServerError> {
         // TODO: Maybe make it asynchronous using lobby's channel ?
 
-        // Send SessionInfo through a channel.
+        // Send GameSessionInfo through a channel.
         let (sender, reader) = mpsc::sync_channel::<Arc<GameSessionInfo>>(1);
 
         let session_uuid = Uuid::new_v4();

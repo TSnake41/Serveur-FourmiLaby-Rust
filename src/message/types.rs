@@ -10,7 +10,7 @@ use crate::{error::ServerError, maze::Maze};
 #[serde(rename_all = "camelCase")]
 pub struct JoinMessageBody {
     /// Asked difficulty.
-    pub difficulty: i32,
+    pub difficulty: u32,
 
     /// Optional player UUID for reconnecting session.
     pub player_id: Option<uuid::Uuid>,

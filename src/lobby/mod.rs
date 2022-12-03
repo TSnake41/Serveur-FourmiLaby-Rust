@@ -16,6 +16,7 @@ use std::{
 use crate::{
     client,
     error::ServerError,
+    external::generator::{generate_maze, ParamMaze},
     game::{state::GameState, GameSession, GameSessionInfo},
     maze::generate_basic_maze,
     message::types::JoinMessageBody,
@@ -108,10 +109,19 @@ impl Lobby {
         &mut self,
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
-        // TODO: Consider criteras
-        let session = GameSession::start_new(GameState::new(generate_basic_maze(5)?));
+        let session = GameSession::start_new(GameState::new(generate_maze(
+            &(ParamMaze {
+                nb_column: 4,
+                nb_line: 4,
+                nest_column: 1,
+                nest_line: 1,
+                nb_food: 1,
+                difficulty: critera.difficulty,
+            }),
+        )?));
 
         if let Ok(info) = &session {
+            // Add the game to the list.
             self.games.push(Arc::downgrade(info));
         }
 
