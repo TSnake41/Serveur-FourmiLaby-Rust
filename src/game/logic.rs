@@ -129,7 +129,7 @@ impl GameState {
         const EVAPORATION_RATE: f32 = 0.1;
 
         Arc::make_mut(&mut self.pheromon).iter_mut().for_each(|s| {
-            *s = f32::clamp(*s * (1f32 - EVAPORATION_RATE), 0f32, 0f32);
+            *s = f32::clamp(*s * (1f32 - EVAPORATION_RATE), 0f32, 1f32);
         });
     }
 
