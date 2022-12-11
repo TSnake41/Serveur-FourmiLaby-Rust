@@ -109,16 +109,22 @@ impl Lobby {
         &mut self,
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
-        let session = GameSession::start_new(GameState::new(generate_maze(
-            &(ParamMaze {
-                nb_column: 4,
-                nb_line: 4,
-                nest_column: 1,
-                nest_line: 1,
-                nb_food: 1,
-                difficulty: critera.difficulty,
-            }),
-        )?));
+        let maze = if cfg!(external_maze_gen) {
+            generate_maze(
+                &(ParamMaze {
+                    nb_column: 4,
+                    nb_line: 4,
+                    nest_column: 1,
+                    nest_line: 1,
+                    nb_food: 1,
+                    difficulty: critera.difficulty,
+                }),
+            )?
+        } else {
+            generate_basic_maze(5)?
+        };
+
+        let session = GameSession::start_new(GameState::new(maze));
 
         if let Ok(info) = &session {
             // Add the game to the list.

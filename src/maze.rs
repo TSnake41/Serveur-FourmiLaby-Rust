@@ -140,6 +140,7 @@ impl Display for Tile {
     }
 }
 
+#[cfg(not(external_maze_gen))]
 /// Generate a basic `size*size` [`Maze`] with a nest at (0;0) and food at (size-1;size-1).
 pub fn generate_basic_maze(size: u32) -> Result<Maze, ServerError> {
     let mut tiles_vec = vec![0u8; size as usize * size as usize];

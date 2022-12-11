@@ -15,5 +15,9 @@ cargo build --release # release
 
 # (Building) and Running
 cargo run # debug
-cargo run --release
+cargo run --release # release
+
+# Add --features external_maze_gen to use an external maze generator
+# e.g
+cargo build --release --features external_maze_gen
 ```

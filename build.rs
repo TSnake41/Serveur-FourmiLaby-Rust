@@ -1,4 +1,6 @@
 fn main() {
-  println!("cargo:rustc-link-search=external");
-  println!("cargo:rustc-link-lib=AntMaze");
+    if cfg!(external_maze_gen) {
+        println!("cargo:rustc-link-search=external");
+        println!("cargo:rustc-link-lib=AntMaze");
+    }
 }

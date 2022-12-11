@@ -9,6 +9,10 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 
+[features]
+default = []
+external_maze_gen = [] # Use an external maze generator
+
 [dependencies.uuid]
 version = "1.2.1"
 features = [
