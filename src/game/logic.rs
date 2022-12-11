@@ -36,21 +36,29 @@ pub fn update_player_position(
 ) -> Option<Tile> {
     if let Some(tile) = maze.get_tile(player.position.0, player.position.1) {
         // Position considering movement (try to not underflow, may lead out of bounds; checked later)
-        let (new_px, new_py) = match Movement::from(msg.direction) {
-            Movement::Up => (player.position.0, player.position.1.saturating_add(1)),
-            Movement::Down => (player.position.0, player.position.1.saturating_sub(1)),
-            Movement::Right => (player.position.0.saturating_add(1), player.position.1),
-            Movement::Left => (player.position.0.saturating_sub(1), player.position.1),
-            Movement::Unknown => (player.position.0, player.position.1),
-        };
-
         // Check if we are passing through a wall.
-        let through_wall = match Movement::from(msg.direction) {
-            Movement::Up => tile.wall_north(),
-            Movement::Down => tile.wall_south(),
-            Movement::Right => tile.wall_east(),
-            Movement::Left => tile.wall_west(),
-            Movement::Unknown => false,
+        let (new_px, new_py, through_wall) = match Movement::from(msg.direction) {
+            Movement::Up => (
+                player.position.0,
+                player.position.1.saturating_add(1),
+                tile.wall_north(),
+            ),
+            Movement::Down => (
+                player.position.0,
+                player.position.1.saturating_sub(1),
+                tile.wall_south(),
+            ),
+            Movement::Right => (
+                player.position.0.saturating_add(1),
+                player.position.1,
+                tile.wall_east(),
+            ),
+            Movement::Left => (
+                player.position.0.saturating_sub(1),
+                player.position.1,
+                tile.wall_west(),
+            ),
+            Movement::Unknown => (player.position.0, player.position.1, false),
         };
 
         if !through_wall {
