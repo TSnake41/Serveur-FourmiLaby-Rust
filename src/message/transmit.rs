@@ -1,8 +1,8 @@
 //! # Transmission primitives
 //!
-//! Transmission currently works using a u32 big-endian number that corresponds to
+//! Transmission currently works using a [`u32`] big-endian number that corresponds to
 //! the size of the payload message, followed by this payload message that is a JSON
-//! [`self::types::Message`] object.
+//! [`super::types::Message`] object.
 //! 
 use std::io::{Read, Write};
 
@@ -11,7 +11,7 @@ use crate::error::ServerError;
 
 const MAX_MESSAGE_SIZE: u32 = 4 * 1024 * 1024; // 4 MiB
 
-/// Write `message` to the `writer` using the protocol.
+/// Write a [`Message`] to the `writer` using the protocol.
 pub fn write_message<W: Write>(writer: &mut W, message: &Message) -> Result<(), ServerError> {
     write_message_raw(writer, serde_json::to_string(message)?.as_bytes())
 }

@@ -38,7 +38,7 @@ pub struct GameState {
 }
 
 impl GameState {
-    /// Create a new initial game state from a specific [`Maze`].
+    /// Create a new initial [`GameState`] from a specific [`Maze`].
     pub fn new(maze: Maze) -> Self {
         let pheromon = vec![0f32; maze.nb_column as usize * maze.nb_line as usize];
 
@@ -49,7 +49,7 @@ impl GameState {
         }
     }
 
-    /// Process a [`Message`] from the player pointed by its [`Uuid`].
+    /// Process a [`Message`] for the player identified by [`Uuid`].
     pub fn process_message(
         &mut self,
         uuid: &Uuid,

@@ -8,6 +8,7 @@ use crate::{
 
 use super::{state::GameState, PlayerInfo};
 
+/// Each movement a player can do.
 enum Movement {
     Up,
     Down,
@@ -28,8 +29,8 @@ impl From<u8> for Movement {
     }
 }
 
-/// TODO: Improve it ?
-pub fn update_player_position(
+/// Update the player position.
+fn update_player_position(
     maze: &Maze,
     player: &mut PlayerInfo,
     msg: &MoveMessageBody,
@@ -132,6 +133,7 @@ impl GameState {
         player
     }
 
+    /// Update the pheromon level of each tile of the maze (see [`GameState`].pheromon).
     pub fn update_pheromon(&mut self) {
         // sigma_ij <- (1 - evaporation) * sigma_ij
         const EVAPORATION_RATE: f32 = 0.1;
@@ -141,6 +143,7 @@ impl GameState {
         });
     }
 
+    /// Drop pheromon on `position`, do nothing if `position` is out of bounds.
     pub fn drop_pheromon(&mut self, position: (u32, u32)) {
         // Add pheromon on the tile.
         if let Some(level) = Arc::make_mut(&mut self.pheromon)

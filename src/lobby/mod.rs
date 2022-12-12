@@ -112,11 +112,11 @@ impl Lobby {
         let maze = if cfg!(external_maze_gen) {
             generate_maze(
                 &(ParamMaze {
-                    nb_column: 4,
-                    nb_line: 4,
+                    nb_column: 5 + 3 * critera.difficulty,
+                    nb_line: 4 + 3 * critera.difficulty,
                     nest_column: 1,
                     nest_line: 1,
-                    nb_food: 1,
+                    nb_food: 1 + critera.difficulty / 4,
                     difficulty: critera.difficulty,
                 }),
             )?
@@ -159,8 +159,6 @@ impl Lobby {
     }
 
     fn housekeep(&mut self) {
-        // collection.drain_filter is unstable as of Rust 1.62
-
         // Remove all player UUID that references games that doesn't exist anymore.
         self.players
             .retain(|_, session| session.upgrade().is_some());

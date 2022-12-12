@@ -63,7 +63,8 @@ pub struct GameSession {
     uuid: Uuid,
 }
 
-/// Try sending `message` to channel (if it exists), otherwise, invalidates the channel.
+/// Try sending a [`Message`] to the [`PlayerChannel`] (if a channel is bound to it).
+/// Otherwise, invalidates the channel.
 fn try_sending_to_channel(
     channel: &mut PlayerChannel,
     message: Message,
