@@ -109,7 +109,7 @@ impl Lobby {
         &mut self,
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
-        let maze = if cfg!(external_maze_gen) {
+        let maze = if cfg!(feature = "external_maze_gen") {
             generate_maze(
                 &(ParamMaze {
                     nb_column: 5 + 3 * critera.difficulty,
