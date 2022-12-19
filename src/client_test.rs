@@ -16,7 +16,7 @@ use crate::{
 
 pub fn client_test() -> Result<(), ServerError> {
     thread::sleep(time::Duration::from_secs(4));
-    for _ in 0..1 {
+    for _ in 0..5 {
         thread::spawn(|| {
             let mut stream =
                 TcpStream::connect(SocketAddr::from_str("127.0.0.1:8080").unwrap()).unwrap();

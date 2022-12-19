@@ -1,4 +1,6 @@
 //! The client session management.
+mod record;
+
 use std::{
     net::{Shutdown, TcpStream},
     sync::mpsc::{self, Receiver, Sender},

@@ -1,5 +1,6 @@
 //! The game session.
 mod logic;
+pub mod record;
 pub mod state;
 
 use std::{
@@ -16,10 +17,12 @@ use uuid::Uuid;
 
 use crate::{
     error::ServerError,
-    game::state::{GameState, PlayerInfo},
+    game::{state::{GameState, PlayerInfo}, record::GameRecord},
     maze::Maze,
     message::types::{InfoMessageBody, Message},
 };
+
+use self::record::GameRecordState;
 
 /// The delay between each update all ticks.
 const UPDATE_PLAYERS_DELAY: Duration = Duration::from_secs(1);
@@ -58,6 +61,7 @@ pub struct GameSession {
     _info: Arc<GameSessionInfo>,
 
     state: GameState,
+    record_state: Option<GameRecordState>,
 
     /// Internal instance UUID, used for debugging.
     uuid: Uuid,
@@ -85,7 +89,7 @@ fn try_sending_to_channel(
 
 impl GameSession {
     /// Creates a new [`GameSession`].
-    pub fn new(state: GameState) -> (Self, Arc<GameSessionInfo>) {
+    pub fn new(state: GameState, recorded: bool) -> (Self, Arc<GameSessionInfo>) {
         let (sender, receiver) = mpsc::channel::<GameSessionMessage>();
         let info = Arc::new(GameSessionInfo {
             channel: sender.into(),
@@ -99,6 +103,9 @@ impl GameSession {
             .map(|(uuid, _)| (*uuid, PlayerChannel(None)))
             .collect();
 
+        // Create the record state the game if needed.
+        let record_state = recorded.then(|| GameRecordState::new(state.maze.clone()));
+
         (
             Self {
                 players,
@@ -106,13 +113,14 @@ impl GameSession {
                 uuid: Uuid::new_v4(),
                 channel: receiver,
                 _info: info.clone(),
+                record_state,
             },
             info,
         )
     }
 
     /// Process a client message.
-    pub fn process_player_message(&mut self, uuid: &Uuid, message: &Message) {
+    fn process_player_message(&mut self, uuid: &Uuid, message: &Message) {
         let (players, state) = (&mut self.players, &mut self.state);
 
         let channel = players
@@ -120,6 +128,11 @@ impl GameSession {
             .expect("Player must exist to be able to send message");
 
         assert!(channel.0.is_some(), "Channel must exist to be able to receive the feedback. Has recv client channel panicked ?");
+
+        // Track the message if we are recording.
+        if let Some(state) = &mut self.record_state {
+            state.track(uuid, message);
+        }
 
         match state.process_message(uuid, message) {
             Ok(info) => {
@@ -217,7 +230,7 @@ impl GameSession {
             .unwrap();
 
         // Create the pheromon update notifier thread
-        let pheromon_updater_channel = sender.clone();
+        let pheromon_updater_channel = sender;
         thread::Builder::new()
             .name(format!("Pheromon updater {}", self.uuid))
             .spawn(move || -> Result<(), ServerError> {
@@ -255,6 +268,11 @@ impl GameSession {
                     //TODO: Consider another way to end the game.
                     if self.players.iter().all(|(_, channel)| channel.0.is_none()) {
                         println!("{}: No active player, stopping", self.uuid.as_braced());
+
+                        if let Some(state) = &self.record_state {
+                            println!("Record :\n{:#?}", GameRecord::from(state.clone()));
+                        }
+
                         return Ok(());
                     }
 
@@ -280,7 +298,10 @@ impl GameSession {
     }
 
     /// Start in a new thread the game session loop.
-    pub fn start_new(state: GameState) -> Result<Arc<GameSessionInfo>, ServerError> {
+    pub fn start_new(
+        state: GameState,
+        recorded: bool,
+    ) -> Result<Arc<GameSessionInfo>, ServerError> {
         // TODO: Maybe make it asynchronous using lobby's channel ?
 
         // Send GameSessionInfo through a channel.
@@ -291,7 +312,7 @@ impl GameSession {
         let _ = thread::Builder::new()
             .name(format!("Game Instance {}", session_uuid.as_braced()))
             .spawn(move || {
-                let (mut session, info) = Self::new(state);
+                let (mut session, info) = Self::new(state, recorded);
                 session.uuid = session_uuid;
 
                 sender.send(info).unwrap();

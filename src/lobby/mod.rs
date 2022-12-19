@@ -124,7 +124,7 @@ impl Lobby {
             generate_basic_maze(5)?
         };
 
-        let session = GameSession::start_new(GameState::new(maze));
+        let session = GameSession::start_new(GameState::new(maze), true);
 
         if let Ok(info) = &session {
             // Add the game to the list.
