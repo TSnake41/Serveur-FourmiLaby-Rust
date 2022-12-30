@@ -1,3 +1,4 @@
+//! Recording system.
 use std::{
     collections::HashSet,
     time::{Duration, Instant},
@@ -25,11 +26,11 @@ pub struct GameRecord {
 
 /// Freeze a [`GameRecordState`] into a [`GameRecord`].
 impl From<GameRecordState> for GameRecord {
-    fn from(val: GameRecordState) -> Self {
+    fn from(state: GameRecordState) -> Self {
         GameRecord {
-            messages: val.messages.into_boxed_slice(),
-            maze: val.maze,
-            players: val.players.into_iter().collect(),
+            messages: state.messages.into_boxed_slice(),
+            maze: state.maze,
+            players: state.players.into_iter().collect(),
         }
     }
 }
@@ -45,6 +46,7 @@ pub(super) struct GameRecordState {
 }
 
 impl GameRecordState {
+    /// Create a new empty [`GameRecordState`].
     pub fn new(maze: Maze) -> Self {
         Self {
             messages: vec![],
@@ -54,6 +56,7 @@ impl GameRecordState {
         }
     }
 
+    /// Add a [`Message`] to the [`GameRecordState`].
     pub fn track(&mut self, player: &Uuid, message: &Message) {
         // Add the player to the set if it doesn't exist.
         self.players.insert(*player);

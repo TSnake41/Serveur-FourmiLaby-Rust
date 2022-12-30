@@ -121,7 +121,7 @@ impl Lobby {
                 }),
             )?
         } else {
-            generate_basic_maze(5)?
+            generate_basic_maze(6)?
         };
 
         let session = GameSession::start_new(GameState::new(maze), true);

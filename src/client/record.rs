@@ -1,3 +1,4 @@
+//! Record replay system.
 use std::{
     net::TcpStream,
     sync::mpsc::{self, Receiver},
