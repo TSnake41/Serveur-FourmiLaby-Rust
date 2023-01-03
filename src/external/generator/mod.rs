@@ -16,26 +16,23 @@ pub struct ParamMaze {
 }
 
 extern "C" {
-    fn generateMaze(param: *const ParamMaze) -> *const CMaze;
-    fn freeMaze(maze: *mut *const CMaze);
+    fn generateMaze(param: &ParamMaze) -> Option<&CMaze>;
+    fn freeMaze(maze: &mut &CMaze);
 }
 
 /// Generate a [`Maze`] using the maze generator.
 pub fn generate_maze(param: &ParamMaze) -> Result<Maze, ServerError> {
     // unsafe ok because generateMaze shouldn't crash, param is non-null.
-    let mut cmaze_ptr = unsafe { generateMaze(param as *const ParamMaze) };
+    if let Some(mut cmaze) = unsafe { generateMaze(param) } {
+        let maze: Result<Maze, _> = cmaze.try_into();
 
-    if cmaze_ptr.is_null() {
-        return Err(ServerError::Other(
+        // unsafe ok cmaze is non-null
+        unsafe { freeMaze(&mut cmaze) }
+
+        maze
+    } else {
+        Err(ServerError::Other(
             "External generator returned a null pointer !".into(),
-        ));
+        ))
     }
-
-    // unsafe ok as cmaze_ptr is non-null
-    let maze: Result<Maze, _> = (unsafe { &*cmaze_ptr }).try_into();
-
-    // unsafe ok as cmaze_ptr is actually a pointer to a CMaze.
-    unsafe { freeMaze(&mut cmaze_ptr as *mut *const CMaze) };
-
-    maze
 }
