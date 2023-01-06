@@ -1,4 +1,4 @@
-//! Recording system.
+///! Recording system.
 use std::{
     collections::HashSet,
     time::{Duration, Instant},
