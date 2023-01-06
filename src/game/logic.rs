@@ -1,4 +1,4 @@
-//! Game logic
+//! Game logic.
 use std::sync::Arc;
 
 use crate::{

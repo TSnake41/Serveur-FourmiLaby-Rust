@@ -1,3 +1,4 @@
+//! Small client demo.
 use core::time;
 use std::{
     net::{SocketAddr, TcpStream},

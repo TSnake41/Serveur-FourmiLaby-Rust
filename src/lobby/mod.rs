@@ -1,4 +1,4 @@
-///! Lobby creation and loops.
+//! Lobby creation and loops.
 pub mod message;
 
 use std::{

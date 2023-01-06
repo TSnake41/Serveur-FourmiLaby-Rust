@@ -16,8 +16,7 @@ use std::{
 use error::ServerError;
 
 fn main() -> Result<(), ServerError> {
-    // Some basic client test.
-    // FIXME: Remove this
+    // Start basic client test.
     thread::spawn(client_test::client_test);
 
     let lobby = lobby::Lobby::new();

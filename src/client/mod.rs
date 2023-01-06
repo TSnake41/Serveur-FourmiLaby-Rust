@@ -133,7 +133,7 @@ fn client_session_negociate(
     Ok(())
 }
 
-/// Client [`Message`] receiving loop.
+/// Client [`Message`] (from [`GameSessionMessage`]) receiving loop.
 fn client_session_recv_loop(
     client: &mut TcpStream,
     channel: Sender<GameSessionMessage>,

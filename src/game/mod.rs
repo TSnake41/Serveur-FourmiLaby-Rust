@@ -96,7 +96,7 @@ impl GameSession {
             maze: state.maze.clone(),
         });
 
-        // Build player channels info using state players (assume not connected).
+        // Build player channels info using state.players (assume not connected).
         let players: HashMap<Uuid, PlayerChannel> = state
             .players
             .iter()

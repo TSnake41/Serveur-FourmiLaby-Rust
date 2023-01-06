@@ -1,3 +1,4 @@
+//! Types of messages that the lobby uses.
 use std::sync::{mpsc::Sender, Arc, Mutex};
 
 use uuid::Uuid;
