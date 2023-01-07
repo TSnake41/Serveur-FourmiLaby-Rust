@@ -95,7 +95,7 @@ impl Maze {
         }
 
         if nests.len() > 1 {
-            todo!("Consider multiples nest");
+            unimplemented!("Consider multiples nest");
         }
 
         let nest_pos = nests[0];

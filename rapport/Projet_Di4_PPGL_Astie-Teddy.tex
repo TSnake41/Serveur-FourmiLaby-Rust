@@ -3,6 +3,7 @@
 %Version : 1.00
 
 \documentclass{EPUProjetDi}
+\usepackage{listings}
 
 \makeindex
 
@@ -138,6 +139,60 @@ En plus de cela, cette structure implémente diverses fonction pour gérer la lo
 La structure de \verb|GameRecordState| définit un état d'enregistrement donc l'instant du dernier message (pour calculer les délais), les différents messages depuis le début de la partie, etc., il est utilisé pour construire à terme le \verb|GameRecord| qui est une version figée dans le marbre et \verb|Serializable| de \verb|GameRecordState|.
 
 L'enregistrement d'une partie trace l'intégralité des messages envoyés par les joueurs, le labyrinthe considéré, ainsi que le moment auquel chaque message a été reçu, cela permet de rejouer une partie, un mécanisme expérimental pour rejouer une partie existe dans le module \verb|client::record|.
+
+\chapter{Choix techniques et apports du Rust}
+
+\section{Système concurrent par passage de message}
+
+Le choix technique le plus notable dans le projet, c'est d'utiliser une approche concurrente fonctionnant principalement par passage de message à l'inverse d'une approche plutôt orientée objet à mémoire partagée.
+
+Cette approche est particulièrement pratique pour exploiter plusieurs processeurs tout en évitant tout un ensemble de problème de synchronisation que l'on pourrait avoir avec une autre approche. De cette manière, la modélisation obtenue s'apparente au modèle d'acteur\footnote{\url{https://fr.wikipedia.org/wiki/Modèle_d'acteur}}.
+
+L'approche orientée objet fonctionnant exclusivement par partage mémoire aurait été limitée car chercher à rendre le code parallèle aurait été ardu comme cela aurait impliqué l'utilisation d'un grand nombre de \verb|Mutex| ainsi que d'autres outils de synchronisation donc aura compliqué plusieurs parties du code. Même en négligeant le parralèlisme donc utilise un unique thread, étant donné que l'on souhaite manipuler plusieurs sockets et plusieures sessions de jeu au même moment, on aurait eu d'une manière à implémenter tout un mécanisme de gestion d'I/O asynchrone ou utiliser une librairie pour le faire à notre place, ce qui est loin d'être simple. C'est pourquoi une approche évitant le couplage est plus souhaitable.
+
+Le Rust nous offre un large panel d'outil pour implémenter les deux approches (passage de message et mémoire partagée), ce qui est pratique car on peut suivant ce que l'on souhaite effectuer, on peut choisir une approche au lieu d'une autre. Dans notre cas, l'ensemble du projet fonctionne par passage de message à l'exception des informations des parties qui est partagée entre le \verb|Lobby| et la \verb|GameSession| (afin notamment de pouvoir déterminer si la partie concernée est en cours ou non, à l'aide de la validité de la référence que détient le \verb|Lobby| vers cette structure).
+
+Il est utile de noter que la plupart des librairies asynchrones Rust\footnote{async-std, tokio} favorisent une approche par passage de message avec par exemple des versions adaptées de \verb|std::sync::mpsc|.
+
+\section{Garanties de fiabilité}
+
+Le langage Rust met en oeuvre tout un ensemble de mécanisme ayant des implications sur le code pour éviter les fuites mémoires sans pour autant nécessiter un garbage-collector (bien qu'il soit possible d'en obtenir avec des références cycliques de \verb|Rc<T>|), d'accéder à des références invalides, certains problèmes liés à l'aliasing, les \textit{race conditions}, \dots Cela peut impliquer l'utilisation de types particulier pour encapsuler nos objets si l'on veut permettre à l'objet d'être référencé à plusieurs endroits (\verb|Rc<T>| et \verb|Arc<T>| similaires à \verb|std::shared_ptr| en C++) ou encore si l'objet peut être modifié par plusieurs thread (\verb|Mutex<T>|), etc\dots
+
+Cela prend notamment la forme de \textit{traits} ($\approx$ interface) spécifiques indiquant si l'objet peut être transféré dans un autre thread ou encore partagée entre plusieurs threads\footnote{\url{https://doc.rust-lang.org/nomicon/send-and-sync.html}}.
+
+De cette manière, un grand nombre d'éventuels problèmes de synchronisation ou de gestion mémoire sont évités ou simplifiés. Toutefois, ce fonctionnement est assez unique et pas très habituel dans d'autres langages de programmation, ce qui peut rendre compliqué l'apprentissage du Rust aux développeurs qui ne sont pas habitués à ces concepts.
+
+\section{Traitement des messages à l'aide des \textit{tagged union} et du \textit{pattern matching}}
+
+L'une des fonctionnalitées du langage Rust les plus pratiques pour implémenter le traitement des messages du protocole utilisé dans le jeu mais aussi ceux pour le passage de message est le pattern matching couplé aux \textit{tagged unions}\footnote{\url{https://en.wikipedia.org/wiki/Tagged_union}}\footnote{\url{https://doc.rust-lang.org/book/ch06-00-enums.html}}. Cet outil nous permet de créer des \textit{types somme} qui est une sorte d'énumération (plus précisément, une version améliorée des énumérations), mais dont chaque variant peut avoir des valeurs ou non (sous la forme d'une valeur, tuple, structure, ...). On peut par exemple définir un union taggué pouvant recevoir chaque type de message supporté par le protocole ainsi que leurs valeurs.
+
+Cette fonctionnalité est également très utilisée dans les fonctionnalitées de base du langage, nottament \verb|Option<T>|\footnote{\url{https://doc.rust-lang.org/core/option/index.html}}, \verb|Result<T, E>|\footnote{\url{https://doc.rust-lang.org/core/result/index.html}}(gestion d'erreur), et bien d'autres.
+
+\begin{center}
+  \includegraphics[width=\linewidth/3]{EnumMessage.png}
+  \label{fig:EnumMessage}
+
+  Enumeration pour les messages du protocole de communication
+\end{center}
+
+En utilisant \verb|match|, il est possible de prendre une décision pour chaque variant de l'union taggué/enumération, tout en destructurant chaque variant, ce qui permet de facilement utiliser ces objets. Il est également possible de faire du "pattern matching" à l'aide de match y compris sur l'élément à l'intérieur du match.
+
+\begin{center}
+  \includegraphics[width=\linewidth/2]{MatchMessage.png}
+  \label{fig:MatchMessage}
+
+  Utilisation de match sur un message suivant son type
+\end{center}
+
+Cette fonctionnalité est extensivement utilisée pour le traitement de message, que ce soit provenant d'un client distant (socket), ou pour le passage de messages entre les acteurs. Il existe une alternative dans le cas où un seul cas particulier nous intéresse (\verb|if let|\footnote{\url{https://doc.rust-lang.org/book/ch06-03-if-let.html}})
+
+\section{Sérialisation de données à l'aide de serde et serde-json}
+
+Serde\footnote{\url{https://serde.rs/}} est un framework de sérialisation de donnéees Rust (ce framework fait parties de \url{https://blessed.rs}), il permet de rendre des types \verb|Serialize| et \verb|Deserialize| de manière automatiques (en utilisant \verb|derive|) ou non ainsi que personaliser la manière dont est structuré la donnée. En complément à cette librairie est peut être implémenté une librairie pour sérialiser et désérialiser différents format de sérialisation, en particulier pour notre projet le format JSON à l'aide de \verb|serde-json|\footnote{\url{https://crates.io/crates/serde_json}}.
+
+De cette manière, en utilisant , on peut très facilement sérialiser ainsi que désérialiser l'ensemble des messages que peut envoyer ou recevoir le serveur, ce qui s'avère extrêmement pratique pour implémenter le protocole.
+
+De plus, cela permet de facilement changer le format de sérialisation si nécessaire sans impliquer de grands changements dans le reste code.
 
 %--------------------------------------------------------------------------------
 \chapter*{Conclusion}
