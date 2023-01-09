@@ -194,6 +194,38 @@ De cette manière, en utilisant , on peut très facilement sérialiser ainsi que
 
 De plus, cela permet de facilement changer le format de sérialisation si nécessaire sans impliquer de grands changements dans le reste code.
 
+\section{Gestion (quasi-)systématique des erreurs}
+
+Certains langages de programmation, dont le C++ et le Java gèrent les erreurs par un mécanisme d'exception, d'autres comme le C utilisent une valeur de retour d'erreur pour indiquer d'une erreur est survenue.
+
+Le langage Rust utilise principalement\footnote{bien qu'il existe un autre mécanisme de gestion d'erreur similaire aux exceptions pour des erreurs critiques \url{https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html}} une valeur de retour pour indiquer une erreur. Cela prend la forme d'un type \verb|Result<T, E>|\footnote{\url{https://doc.rust-lang.org/core/result/}} qui indique soit une valeur valide, soit une erreur et d'un autre type \verb|Option<T>|\footnote{\url{https://doc.rust-lang.org/core/option/}} pour des fonctions qui pourrait ne pas retourner de valeur. Un \verb|Result<T, E>| doit être obligatoirement utilisé, par exemple en utilisant \verb|match| pour définir le comportement en cas d'erreur ou avec une valeur, il est également possible d'utiliser l'opérateur \verb|?|\footnote{\url{https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html}} pour remonter l'erreur comme valeur de retour à la fonction, ce qui permet d'une manière, "d'émuler des exceptions".
+
+De plus, de la même manière que pour définir des exceptions, on peut définir nos propres types d'erreurs, et ainsi "normaliser" les erreurs que l'on peut avoir dans le projet. En effet, dans notre projet, l'objet \verb|ServerError| qui est utilisé à cet fin implémente \verb|Serializable|, ce qui a permis de facilement mettre en place un mécanisme de transmission des erreurs au client.
+
+Le système d'exception du Rust est très pratique, car il nous empêche d'ignorer silencieusement les erreurs (et par conséquent déclencher des comportements indéfinis) rend les origines des erreurs plus claires (l'opérateur \verb|?| indique que l'opération gère son erreur en la remontant), seules les fonctions retournant \verb|Result<T, E>| peuvent échouer, permet de gérer imédiatement les erreurs, sans nécessiter d'écrire de bloc \verb|try catch|, etc.
+
+\section{Riche ensemble d'outil pour développer le projet}
+
+Le Rust fournit un conséquent panel d'outil pour développer le projet\footnote{\url{https://www.rust-lang.org/fr/tools}}, en allant d'une installation simplifiée\footnote{\url{https://rustup.rs/}}, en passant par le confort dans l'utilisation avec un éditeur\footnote{\url{https://rust-analyzer.github.io/}} ainsi que plusieurs outils liés aux pratiques de génie logiciel (compilation et gestion des librairies\footnote{\url{https://doc.rust-lang.org/cargo/index.html}}, génération de pages de documentation comme avec Doxygen\footnote{\url{https://doc.rust-lang.org/rustdoc/index.html}}, vérification du code\footnote{\url{https://doc.rust-lang.org/stable/clippy/index.html}}, conventions d'écriture\footnote{\url{https://rust-lang.github.io/rustfmt/}}, tests unitaires\footnote{\url{https://doc.rust-lang.org/book/ch11-00-testing.html}}, sans oublier l'aide fournie le compilateur\footnote{\url{https://youtu.be/CJtvnepMVAU}}).
+
+Cet ensemble d'outil est consistent et pratique sans nécessiter de lourde configuration. C'est une partie de ce qui fait le succès du langage d'après une analyse de The Overflow [StackOverflow]\cite{stackoverflowloverust}\cite{stackoverflowrustpopular}.
+
+Une grande partie de ces outils ont été utilisés pour réaliser ce projet. Cela participe à l'amélioration de la qualité du code, à la fiabilité ainsi qu'à la performance dans certains cas. Cela permet également de mettre en pratique certaines pratiques de génie logiciel.
+
+\chapter{Organisation du projet}
+
+\section{Gestion du projet Rust}
+
+Etant donné que le projet a été développé uniquement par moi même, il n'y a pas grand chose à noter quant à la gestion du projet. Une chose importante tout de même que j'ai pu remarquer est l'importance de régulièrement travailler sur le projet, afin d'éviter de tout faire à la fin. Dans mon cas, et comme le montre le dépôt git, le projet a été régulièrement et au fur et à mesure développé, toutefois j'ai remarqué que certains binômes de d'autres projets de génie logiciel ont eu des difficultées à gérer leur temps. Il faut donc rester sur cette approche de travail régulier pour les projets à venir.
+
+\section{Gestion du méta-projet Labyrinthe de Fourmis}
+
+Notre sujet, malgré que ce soit un projet effectué en binôme (ou monôme), était développé en partie en collaboration avec les autres groupes afin nos projets soient compatibles dans la mesure du possible. De cette manière, plusieurs réunions ont été organisées, afin de décider comment implémenter le projet, définir le protocole, la forme du labyrinthe, et ensuite définir de quelle manière collaborer pour ce projet, etc.
+
+Toutefois, assez rapidement, certains groupes ont perdu le contact avec le projet, ce qui a compliqué la collaboration, et a entraîné à terme des divergences dans ce qui a été implementé\footnote{en particulier la divergence dans le protocole implémenté entre les serveurs Rust et C++}. De plus, cela complique l'accès à certains outils, comme par exemples les joueurs pour tester nos serveurs, et ainsi vérifier que nos implémentations du protocoles sont correctes (dans les deux sens). Pour les projets futurs\footnote{dont le projet collectif de S8}, il faudra être très attentif sur les autres personnes du groupe quant à la cohésion et insister plus encore que ce qui a été effectué pour ce méta-projet à ce que les autres participants ne perdent pas le fil.
+
+Pour autant, une grande partie des projets\footnote{notamment le code source des serveurs et des générateurs de labyrinthes utiles aux serveurs} était hébergée sur le Gitlab de l'université\footnote{\url{https://scm.univ-tours.fr}}, afin de faciliter la collaboration entre les projets. Par exemple, j'ai pu intégrer la librairie C++ à mon projet à l'aide d'un submodule git\footnote{\url{https://git-scm.com/book/en/v2/Git-Tools-Submodules}} ce qui s'avère pratique pour intégrer la compilation de la librairie C++ dans mon projet (malgré d'éventuelles difficultées liés à la librairie standard C++ qui n'est pas intégrée de base à la compilation Rust).
+
 %--------------------------------------------------------------------------------
 \chapter*{Conclusion}
 \addcontentsline{toc}{chapter}{\numberline{}Conclusion}
@@ -201,15 +233,27 @@ De plus, cela permet de facilement changer le format de sérialisation si néces
 
 \label{sec:conclusion}
 
+Tout d'abord, ce projet m'a permis de mettre en perspective toute la problèmatique de gestion de projet. En effet, ce projet a cherché à faire coopérer plusieurs groupes, autour d'un même plus grand projet, ce qui peut rapidement devenir compliqué, par exemple, il peut arriver que certains groupes "partent dans leur coin" et développent leur partie du projet de leur côté donc sans trop coopérer avec les autres. Cela explique l'importance d'effectuer des réunions afin de mettre au clair ce que l'on souhaite effectuer afin d'éviter des divergences ou incompréhensions dans ce qui est effectué.
+
+Il est entièrement possible que les autres groupes du projet aient estimé qu'il s'agissait d'un projet plutôt "individuel" et donc ont involontairement préféré ne pas coopérer avec les autres, bien que ce ne soit pas l'esprit du projet.
+
+Ensuite, ce projet a consitué un véritable exercice concrêt de programmation en Rust, ce qui m'a permis d'apprendre plus en pronfondeur le langage, ainsi que son écosystème. Bien que ce soit pas mon tout premier projet (même petit) en Rust, cela a été le plus grand et important que j'ai effectué depuis que j'ai commencé à apprendre le langage (environ depuis 3 ans). J'ai pu expérimenter avec de nombreuses parties de la librairie standard Rust, toutes les subtilitées de l'interfaçage avec le C, la sérialisation, bien d'autres choses mais surtout la programmation concurrente par passage de message.
+
+Depuis le début de cette année universitaire, le langage Rust a gagné énormément d'intérêt dans de nombreux domaines, par exemple, il est desormais officiellement supporté par le noyau Linux\cite{rustlinux} avec un certain succès (driver open-source pour le GPU de l'Apple M1\cite{asahi}, OpenCL dans Mesa3D\cite{rusticl}, et plus encore\cite{nvmerust}). De plus, le Rust intéresse de plus en plus les entreprises (CEA, Thales, AtoS, ...) et intéresse aussi bien le domaine de l'embarqué, que celui des services web, serveurs, librairies système, etc.
+
+Etant donné que mon expérience avec ce langage fut extrêmement positive, je n'hésiterais pas à effectuer un stage autour du langage Rust, ce qui est de plus en plus proposé, et que les candidats pour ce genre de stage se font rares\footnote{hormis pour un stage promosé par AtoS explicitément prévus pour des novices du Rust qui intéresse beaucoup de candidats}.
+
 %--------------------------------------------------------------------------------
 %exemple de bibliographie
 \begin{thebibliography}{99}
 \label{sec:biblio}
-\bibitem{markrussinovich}  \url{https://www.zdnet.com/article/programming-languages-its-time-to-stop-using-c-and-c-for-new-projects-says-microsoft-azure-cto/}
-\bibitem{ref2}  détail bibliographique de la ref2
-\bibitem{ref3}  détail bibliographique de la ref3
-\bibitem{ref4}  détail bibliographique de la ref4
-\bibitem{ref5}  détail bibliographique de la ref5
+\bibitem{markrussinovich} \url{https://www.zdnet.com/article/programming-languages-its-time-to-stop-using-c-and-c-for-new-projects-says-microsoft-azure-cto/}
+\bibitem{stackoverflowloverust} \url{https://stackoverflow.blog/2020/06/05/why-the-developers-who-use-rust-love-it-so-much/}
+\bibitem{stackoverflowrustpopular} \url{https://stackoverflow.blog/2020/01/20/what-is-rust-and-why-is-it-so-popular/}
+\bibitem{rustlinux} \url{https://www.zdnet.com/article/linus-torvalds-rust-will-go-into-linux-6-1/}
+\bibitem{asahi} \url{https://asahilinux.org/2022/11/tales-of-the-m1-gpu/}
+\bibitem{rusticl} \url{https://www.phoronix.com/news/Rusticl-2022-XDC-State}
+\bibitem{nvmerust} \url{https://lpc.events/event/16/contributions/1180/attachments/1017/1961/deck.pdf}
 \end{thebibliography}
 
 
