@@ -57,17 +57,17 @@ Ce projet fait partie de l'ensemble des projets du "jeu de fourmis" proposé par
 
 \section{Rappel du principe de jeu Labyrinthe de Fourmis}
 
-Le jeu labyrinthe de fourmis est un jeu coopératif dont l'objectif est d'obtenir le plus de points en apportant de la nourriture jusqu'au nid au travers d'un labyrinthe. Afin de faciliter les décisions des jours, un mécanisme de phéromone est mis en place, afin de déterminer le chemin pris par un joueur qui a réussi à apporter la nourriture jusqu'au nid.
+Le jeu labyrinthe de fourmis est un jeu coopératif dont l'objectif est d'obtenir le plus de points en apportant de la nourriture jusqu'au nid au travers d'un labyrinthe. Afin de faciliter les décisions des joueurs, un mécanisme de phéromone est mis en place, afin de déterminer le chemin pris par un joueur qui a réussi à apporter la nourriture jusqu'au nid.
 
-L'environnement de jeu est un labyrinthe sur une grille en 2 dimensions pour lequel chaque case peut comporter éventuellement des mur dans chaque direction ainsi qu'éventuellement de la nouriture et/ou un nid. Le joueur doit trouver un chemin du nid jusqu'à une source de nourriture en évitant les murs, et si possible en prenant le plus court chemin.
+L'environnement de jeu est un labyrinthe sur une grille en 2 dimensions pour lequel chaque case peut comporter des mur dans chaque direction ainsi qu'éventuellement de la nouriture et/ou un nid. Le joueur doit trouver un chemin du nid jusqu'à une source de nourriture en tenant compte des murs, et si possible en prenant le plus court chemin.
 
 Lorsque le joueur trouve de la nourriture, il émet des phéromones sur les cases qu'il traverse, jusqu'à ce qu'il arrive au nid.
 
 Chaque joueur reçoit une copie du labyrinthe lors de son arrivée sur la partie, ainsi que régulièrement (chaque seconde) le niveau de phéromone de chaque case.
 
-Les différentes parties intervenant dans le jeu (client et serveur) communiquent selon un protocole de communication basé sur du JSON et par du TCP/IP.
+Le client et le serveur communiquent selon un protocole de communication basé sur du JSON et par du TCP/IP.
 
-Le serveur est capable de gérer plusieurs parties en même temps, une phase de connexion/négociation est effectuée lorsque qu'un client se connecte au serveur, de plus, il est possible pour un joueur de se reconnecter à une partie après un éventuel problème de connexion.
+Le serveur est capable de gérer plusieurs parties en même temps, une phase de connexion/négociation est effectuée lorsque qu'un client se connecte au serveur, de plus, il est possible pour un joueur de se reconnecter à une partie après un éventuel problème de connexion (à l'aide de son UUID).
 
 \section{Intérêt du langage Rust dans le projet}
 
@@ -77,7 +77,7 @@ Initialement, les langages proposés furent le C et éventuellement le C++. Tout
   \includegraphics[width=\linewidth/2]{rust-social-wide.jpg}
 \end{center}
 
-Le langage Rust qui a gagné beaucoup d'intérêt ces dernières années est décrit comme un "langage de programmation fiable, concurrent, pratique" ayant un modèle de concurrence inspiré de l'Erlang\footnote{\url{https://www.erlang.org/}} et conçu pour produire des logiciels fiables et robustes tout en garantissant une très haute performance. Ce langage a été en grande partie conçu pour éviter une grande partie des problèmes cités au dessus (synchronisation, gestion mémoire) avec des mécanismes particuliers comme par exemple système d'ownership/borrowing strict, le paramètre de durée de vie (non utilisé dans le projet), divers marqueurs, clonage non implicite, etc. De plus, le directeur technique de Microsoft Azure nous recommande d'utiliser Rust à la place de C et C++ pour des nouveaux projets\cite{markrussinovich}.
+Le langage Rust qui a gagné beaucoup d'intérêt ces dernières années est décrit comme un "langage de programmation fiable, concurrent, pratique" ayant un modèle de concurrence inspiré de l'Erlang\footnote{\url{https://www.erlang.org/}} et conçu pour produire des logiciels fiables et robustes tout en garantissant une très haute performance. Ce langage a été en grande partie conçu pour éviter une grande partie des problèmes cités au dessus (synchronisation, gestion mémoire) avec des mécanismes particuliers comme par exemple système d'ownership/borrowing strict, le paramètre de durée de vie (non utilisé dans le projet), divers marqueurs (comme \verb|MaybeUninit<T>|), clonage non implicite, etc. De plus, le directeur technique de Microsoft Azure nous recommande d'utiliser Rust à la place de C et C++ pour des nouveaux projets\cite{markrussinovich}.
 
 Pour toutes ces raisons et d'autres encore, le langage Rust a été choisi pour réaliser ce projet.
 
@@ -113,11 +113,11 @@ L'exécution commence tout d'abord dans le \verb|Lobby| qui a deux responsabilit
 
 Tout d'abord, le \verb|Lobby| accepte les différents sockets, et construit des clients.
 
-Au même temps (dans un thread à part), le \verb|Lobby| reçoit des messages de la part des clients pour trouver une partie (\textit{matchmaking}, en créant si besoin la partie), ainsi qu'effectuer d'autres tâches de maintenance des structures de données (supprimer les références vers des parties qui n'existent plus) et gère la liste des parties en cours, des liens entre les \verb|UUID| des joueurs et leur serveur associé.
+En même temps (dans un thread à part), le \verb|Lobby| reçoit des messages de la part des clients pour trouver une partie (\textit{matchmaking}, en créant si besoin la partie), ainsi qu'effectuer d'autres tâches de maintenance des structures de données (supprimer les références vers des parties qui n'existent plus) et gère la liste des parties en cours, des liens entre les \verb|UUID| des joueurs et leur serveur associé.
 
 \section{Client}
 
-Le \verb|client| est construit par le \verb|Lobby| à partir de son \verb|TcpStream|, et d'un canal vers le \verb|Lobby|. La première étape du \verb|client| est de se charger de vérifier et rediriger la négociation d'une partie avec le \verb|Lobby| afin de se connecter à une \verb|GameSession|. Une fois le client connecté à la \verb|GameSession|, ce client se charge de vérifier et rediriger tous les \verb|Message| provenant du \verb|TcpStream| jusqu'à la \verb|GameSession| ainsi que tous les messages de la \verb|GameSession| jusqu'au \verb|TcpStream|.
+Le \verb|client| est construit par le \verb|Lobby| à partir du \verb|TcpStream| qui vient de se connecter, et d'un canal vers le \verb|Lobby|. La première étape du \verb|client| est de se charger de vérifier et rediriger la négociation d'une partie avec le \verb|Lobby| afin de se connecter à une \verb|GameSession|. Une fois le client connecté à la \verb|GameSession|, ce client se charge de vérifier et rediriger tous les \verb|Message| provenant du \verb|TcpStream| jusqu'à la \verb|GameSession| ainsi que tous les messages de la \verb|GameSession| jusqu'au \verb|TcpStream|.
 
 En cas d'erreur fatale (message inattendu, JSON invalide, erreur réseau, plantage de la parties), envoie si possible une erreur au \verb|TcpStream|, stoppe le \verb|TcpStream| puis detruit le canal du client ce qui va à terme invalider la connexion du client pour la \verb|GameSession|.
 
@@ -130,15 +130,15 @@ Une fonctionnalité expérimentale gérée par le \verb|GameSession| est l'enreg
 \section{GameState}
 
 La structure de \verb|GameState| est l'état instantanné de la partie, il détient toutes les informations sur l'état de la partie : le labyrinthe considéré, les niveaux de phéromones, les \verb|UUID| des joueurs, et leur position ainsi que si ils détiennent de la nouriture.
-Par conséquent, le \verb|GameState| n'a aucune connaissance de si un joueur concerné est actuellement connecté ou non et détient que des objets bruts ou listes, le rendant notamment compatible avec les traits \verb|Clone|, \verb|Send| et \verb|Serializable|. 
+Par conséquent, le \verb|GameState| n'a aucune connaissance de si un certain joueur est actuellement connecté ou non et détient que des objets bruts dont des listes, le rendant notamment compatible avec les traits \verb|Clone|, \verb|Send| et \verb|Serializable|.
 
-En plus de cela, cette structure implémente diverses fonction pour gérer la logique du jeu (déplacements des fourmis, actualisation des niveaux de phéromones, actualisation de l'évaporation, etc.).
+En plus de cela, cette structure implémente diverses méthodes pour gérer la logique du jeu (déplacements des fourmis, actualisation des niveaux de phéromones, actualisation de l'évaporation, etc.).
 
 \section{GameRecordState et GameRecord}
 
-La structure de \verb|GameRecordState| définit un état d'enregistrement donc l'instant du dernier message (pour calculer les délais), les différents messages depuis le début de la partie, etc., il est utilisé pour construire à terme le \verb|GameRecord| qui est une version figée dans le marbre et \verb|Serializable| de \verb|GameRecordState|.
+La structure de \verb|GameRecordState| définit un état d'enregistrement, donc l'instant du dernier message (pour calculer les délais), les différents messages depuis le début de la partie, etc., il est utilisé pour construire à terme le \verb|GameRecord| qui est une version figée dans le marbre et \verb|Serializable| de \verb|GameRecordState|.
 
-L'enregistrement d'une partie trace l'intégralité des messages envoyés par les joueurs, le labyrinthe considéré, ainsi que le moment auquel chaque message a été reçu, cela permet de rejouer une partie, un mécanisme expérimental pour rejouer une partie existe dans le module \verb|client::record|.
+L'enregistrement d'une partie trace l'intégralité des messages envoyés par les joueurs, le labyrinthe considéré, ainsi que le moment auquel chaque message a été reçu, cela permet de rejouer une partie. Un mécanisme expérimental pour rejouer une partie existe dans le module \verb|client::record|.
 
 \chapter{Choix techniques et apports du Rust}
 
@@ -148,7 +148,7 @@ Le choix technique le plus notable dans le projet, c'est d'utiliser une approche
 
 Cette approche est particulièrement pratique pour exploiter plusieurs processeurs tout en évitant tout un ensemble de problème de synchronisation que l'on pourrait avoir avec une autre approche. De cette manière, la modélisation obtenue s'apparente au modèle d'acteur\footnote{\url{https://fr.wikipedia.org/wiki/Modèle_d'acteur}}.
 
-L'approche orientée objet fonctionnant exclusivement par partage mémoire aurait été limitée car chercher à rendre le code parallèle aurait été ardu comme cela aurait impliqué l'utilisation d'un grand nombre de \verb|Mutex| ainsi que d'autres outils de synchronisation donc aura compliqué plusieurs parties du code. Même en négligeant le parralèlisme donc utilise un unique thread, étant donné que l'on souhaite manipuler plusieurs sockets et plusieures sessions de jeu au même moment, on aurait eu d'une manière à implémenter tout un mécanisme de gestion d'I/O asynchrone ou utiliser une librairie pour le faire à notre place, ce qui est loin d'être simple. C'est pourquoi une approche évitant le couplage est plus souhaitable.
+L'approche orientée objet fonctionnant exclusivement par partage mémoire aurait été limitée car chercher à rendre le code parallèle aurait été ardu comme cela aurait impliqué l'utilisation d'un grand nombre de \verb|Mutex| ainsi que d'autres outils de synchronisation donc aura compliqué plusieurs parties du code. Même en négligeant le parralèlisme donc n'utiliser qu'un unique thread, étant donné que l'on souhaite manipuler plusieurs sockets et plusieures sessions de jeu au même moment, on aurait eu d'une manière à implémenter tout un mécanisme de gestion d'I/O asynchrone ou utiliser une librairie pour le faire à notre place, ce qui est loin d'être simple. C'est pourquoi une approche évitant le couplage est plus souhaitable.
 
 Le Rust nous offre un large panel d'outil pour implémenter les deux approches (passage de message et mémoire partagée), ce qui est pratique car on peut suivant ce que l'on souhaite effectuer, on peut choisir une approche au lieu d'une autre. Dans notre cas, l'ensemble du projet fonctionne par passage de message à l'exception des informations des parties qui est partagée entre le \verb|Lobby| et la \verb|GameSession| (afin notamment de pouvoir déterminer si la partie concernée est en cours ou non, à l'aide de la validité de la référence que détient le \verb|Lobby| vers cette structure).
 
@@ -184,13 +184,13 @@ En utilisant \verb|match|, il est possible de prendre une décision pour chaque 
   Utilisation de match sur un message suivant son type
 \end{center}
 
-Cette fonctionnalité est extensivement utilisée pour le traitement de message, que ce soit provenant d'un client distant (socket), ou pour le passage de messages entre les acteurs. Il existe une alternative dans le cas où un seul cas particulier nous intéresse (\verb|if let|\footnote{\url{https://doc.rust-lang.org/book/ch06-03-if-let.html}})
+Cette fonctionnalité est extensivement utilisée pour le traitement de message, que ce soit provenant d'un client distant (socket), ou pour le passage de messages entre les acteurs. Il existe une alternative dans le cas où seulement un seul cas particulier nous intéresse (\verb|if let|\footnote{\url{https://doc.rust-lang.org/book/ch06-03-if-let.html}})
 
 \section{Sérialisation de données à l'aide de serde et serde-json}
 
-Serde\footnote{\url{https://serde.rs/}} est un framework de sérialisation de donnéees Rust (ce framework fait parties de \url{https://blessed.rs}), il permet de rendre des types \verb|Serialize| et \verb|Deserialize| de manière automatiques (en utilisant \verb|derive|) ou non ainsi que personaliser la manière dont est structuré la donnée. En complément à cette librairie est peut être implémenté une librairie pour sérialiser et désérialiser différents format de sérialisation, en particulier pour notre projet le format JSON à l'aide de \verb|serde-json|\footnote{\url{https://crates.io/crates/serde_json}}.
+Serde\footnote{\url{https://serde.rs/}} est un framework de sérialisation de donnéees Rust (ce framework fait parties de \url{https://blessed.rs}), il permet de rendre des types \verb|Serialize| et \verb|Deserialize| de manière automatiques (en utilisant \verb|derive|) ou non ainsi que personaliser la manière dont est structuré la donnée. En complément à cette librairie peut être implémenté une librairie pour sérialiser et désérialiser différents format de sérialisation, en particulier pour notre projet le format JSON à l'aide de \verb|serde-json|\footnote{\url{https://crates.io/crates/serde_json}}.
 
-De cette manière, en utilisant , on peut très facilement sérialiser ainsi que désérialiser l'ensemble des messages que peut envoyer ou recevoir le serveur, ce qui s'avère extrêmement pratique pour implémenter le protocole.
+De cette manière, en utilisant \verb|serde-json|, on peut très facilement sérialiser ainsi que désérialiser l'ensemble des messages que peut envoyer ou recevoir le serveur, ce qui s'avère extrêmement pratique pour implémenter le protocole.
 
 De plus, cela permet de facilement changer le format de sérialisation si nécessaire sans impliquer de grands changements dans le reste code.
 
@@ -198,7 +198,7 @@ De plus, cela permet de facilement changer le format de sérialisation si néces
 
 Certains langages de programmation, dont le C++ et le Java gèrent les erreurs par un mécanisme d'exception, d'autres comme le C utilisent une valeur de retour d'erreur pour indiquer d'une erreur est survenue.
 
-Le langage Rust utilise principalement\footnote{bien qu'il existe un autre mécanisme de gestion d'erreur similaire aux exceptions pour des erreurs critiques \url{https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html}} une valeur de retour pour indiquer une erreur. Cela prend la forme d'un type \verb|Result<T, E>|\footnote{\url{https://doc.rust-lang.org/core/result/}} qui indique soit une valeur valide, soit une erreur et d'un autre type \verb|Option<T>|\footnote{\url{https://doc.rust-lang.org/core/option/}} pour des fonctions qui pourrait ne pas retourner de valeur. Un \verb|Result<T, E>| doit être obligatoirement utilisé, par exemple en utilisant \verb|match| pour définir le comportement en cas d'erreur ou avec une valeur, il est également possible d'utiliser l'opérateur \verb|?|\footnote{\url{https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html}} pour remonter l'erreur comme valeur de retour à la fonction, ce qui permet d'une manière, "d'émuler des exceptions".
+Le langage Rust utilise principalement\footnote{bien qu'il existe un autre mécanisme de gestion d'erreur similaire aux exceptions pour des erreurs critiques \url{https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html}} une valeur de retour pour indiquer une erreur. Cela prend la forme d'un type \verb|Result<T, E>|\footnote{\url{https://doc.rust-lang.org/core/result/}} qui indique soit une valeur valide, soit une erreur et d'un autre type \verb|Option<T>|\footnote{\url{https://doc.rust-lang.org/core/option/}} pour des fonctions qui pourrait ne pas retourner de valeur (sans pour autant que ce soit une erreur). Un \verb|Result<T, E>| doit être obligatoirement utilisé, par exemple en utilisant \verb|match| pour définir le comportement en cas d'erreur ou avec une valeur, il est également possible d'utiliser l'opérateur \verb|?|\footnote{\url{https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html}} pour remonter l'erreur comme valeur de retour à la fonction, ce qui permet d'une manière, "de simuler des exceptions".
 
 De plus, de la même manière que pour définir des exceptions, on peut définir nos propres types d'erreurs, et ainsi "normaliser" les erreurs que l'on peut avoir dans le projet. En effet, dans notre projet, l'objet \verb|ServerError| qui est utilisé à cet fin implémente \verb|Serializable|, ce qui a permis de facilement mettre en place un mécanisme de transmission des erreurs au client.
 
