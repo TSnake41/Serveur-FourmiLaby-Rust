@@ -127,8 +127,6 @@ impl GameSession {
             .get_mut(uuid)
             .expect("Player must exist to be able to send message");
 
-        assert!(channel.0.is_some(), "Channel must exist to be able to receive the feedback. Has recv client channel panicked ?");
-
         // Track the message if we are recording.
         if let Some(state) = &mut self.record_state {
             state.track(uuid, message);
