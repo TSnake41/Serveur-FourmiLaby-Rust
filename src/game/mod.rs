@@ -3,21 +3,20 @@ mod logic;
 pub mod record;
 pub mod state;
 
-use std::{
-    collections::HashMap,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        Arc, Mutex,
-    },
-    thread,
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use async_std::{
+    channel::{self, Receiver, Sender},
+    task,
+};
 use uuid::Uuid;
 
 use crate::{
     error::ServerError,
-    game::{state::{GameState, PlayerInfo}, record::GameRecord},
+    game::{
+        record::GameRecord,
+        state::{GameState, PlayerInfo},
+    },
     maze::Maze,
     message::types::{InfoMessageBody, Message},
 };
@@ -45,7 +44,7 @@ pub struct GameSessionMessage(pub Uuid, pub GameSessionMessageKind);
 /// May be sent to a client session.
 #[derive(Debug)]
 pub struct GameSessionInfo {
-    pub channel: Mutex<Sender<GameSessionMessage>>,
+    pub channel: Sender<GameSessionMessage>,
     pub maze: Maze,
 }
 
@@ -69,7 +68,7 @@ pub struct GameSession {
 
 /// Try sending a [`Message`] to the [`PlayerChannel`] (if a channel is bound to it).
 /// Otherwise, invalidates the channel.
-fn try_sending_to_channel(
+async fn try_sending_to_channel(
     channel: &mut PlayerChannel,
     message: Message,
     uuid: &Uuid,
@@ -78,7 +77,7 @@ fn try_sending_to_channel(
     // If the player has an active channel.
     if let Some(sender) = &channel.0 {
         // Try sending a info message.
-        if sender.send(message).is_err() {
+        if sender.send(message).await.is_err() {
             // We can't send message to channel, invalidate the channel.
             eprintln!("{}: player {uuid} disconnected", session_uuid.as_braced());
 
@@ -90,7 +89,7 @@ fn try_sending_to_channel(
 impl GameSession {
     /// Creates a new [`GameSession`].
     pub fn new(state: GameState, recorded: bool) -> (Self, Arc<GameSessionInfo>) {
-        let (sender, receiver) = mpsc::channel::<GameSessionMessage>();
+        let (sender, receiver) = channel::unbounded::<GameSessionMessage>();
         let info = Arc::new(GameSessionInfo {
             channel: sender.into(),
             maze: state.maze.clone(),
@@ -120,7 +119,7 @@ impl GameSession {
     }
 
     /// Process a client message.
-    fn process_player_message(&mut self, uuid: &Uuid, message: &Message) {
+    async fn process_player_message(&mut self, uuid: &Uuid, message: &Message) {
         let (players, state) = (&mut self.players, &mut self.state);
 
         let channel = players
@@ -146,7 +145,8 @@ impl GameSession {
                     }),
                     uuid,
                     &self.uuid,
-                );
+                )
+                .await;
             }
 
             // Inform the player of an unexpected message.
@@ -159,7 +159,8 @@ impl GameSession {
                     },
                     uuid,
                     &self.uuid,
-                );
+                )
+                .await;
             }
             Err(e) => {
                 eprintln!("Internal server error: {e:?}");
@@ -211,55 +212,62 @@ impl GameSession {
     }
 
     /// Run the game session loop.
-    pub fn run(&mut self) -> Result<(), ServerError> {
-        let sender = self._info.channel.lock().unwrap().clone();
+    pub async fn run(&mut self) -> Result<(), ServerError> {
+        let sender = self._info.channel.clone();
 
         // Create the update all notifier thread
         let player_updater_channel = sender.clone();
-        thread::Builder::new()
+        task::Builder::new()
             .name(format!("GameSession updater {}", self.uuid))
-            .spawn(move || -> Result<(), ServerError> {
+            .spawn(async move {
                 loop {
-                    thread::sleep(UPDATE_PLAYERS_DELAY);
-                    player_updater_channel.send(GameSessionMessage(
-                        uuid::Uuid::default(),
-                        GameSessionMessageKind::UpdateAllPlayers,
-                    ))?;
+                    task::sleep(UPDATE_PLAYERS_DELAY).await;
+                    player_updater_channel
+                        .send(GameSessionMessage(
+                            uuid::Uuid::default(),
+                            GameSessionMessageKind::UpdateAllPlayers,
+                        ))
+                        .await
+                        .ok();
                 }
             })
             .unwrap();
 
         // Create the pheromon update notifier thread
         let pheromon_updater_channel = sender;
-        thread::Builder::new()
+
+        task::Builder::new()
             .name(format!("Pheromon updater {}", self.uuid))
-            .spawn(move || -> Result<(), ServerError> {
+            .spawn(async move {
                 loop {
-                    thread::sleep(PHEROMON_UPDATE_DELAY);
-                    pheromon_updater_channel.send(GameSessionMessage(
-                        uuid::Uuid::default(),
-                        GameSessionMessageKind::UpdatePheromon,
-                    ))?;
+                    task::sleep(PHEROMON_UPDATE_DELAY).await;
+                    pheromon_updater_channel
+                        .send(GameSessionMessage(
+                            uuid::Uuid::default(),
+                            GameSessionMessageKind::UpdatePheromon,
+                        ))
+                        .await
+                        .ok();
                 }
             })
             .unwrap();
 
-        self.run_loop()
+        self.run_loop().await
     }
 
-    fn run_loop(&mut self) -> Result<(), ServerError> {
+    async fn run_loop(&mut self) -> Result<(), ServerError> {
         loop {
-            let session_msg = self.channel.recv()?;
+            let session_msg = self.channel.recv().await?;
             let (uuid, kind) = (session_msg.0, session_msg.1);
 
             match kind {
                 GameSessionMessageKind::ClientMessage(message) => {
-                    self.process_player_message(&uuid, &message)
+                    self.process_player_message(&uuid, &message).await
                 }
                 GameSessionMessageKind::InitializePlayer(sender) => {
                     if let Err(e) = self.init_player(&uuid, sender.clone()) {
                         // Notify the player of a failure.
-                        sender.send(Message::Error(e)).ok();
+                        sender.send(Message::Error(e)).await.ok();
                     }
                 }
                 GameSessionMessageKind::UpdateAllPlayers => {
@@ -276,7 +284,7 @@ impl GameSession {
                         return Ok(());
                     }
 
-                    self.players.iter_mut().for_each(|(uuid, channel)| {
+                    for (uuid, channel) in self.players.iter_mut() {
                         if let Some(info) = self.state.players.get(uuid) {
                             try_sending_to_channel(
                                 channel,
@@ -288,9 +296,10 @@ impl GameSession {
                                 }),
                                 uuid,
                                 &self.uuid,
-                            );
+                            )
+                            .await;
                         }
-                    })
+                    }
                 }
                 GameSessionMessageKind::UpdatePheromon => self.state.update_pheromon(),
             }
@@ -305,26 +314,26 @@ impl GameSession {
         // TODO: Maybe make it asynchronous using lobby's channel ?
 
         // Send GameSessionInfo through a channel.
-        let (sender, reader) = mpsc::sync_channel::<Arc<GameSessionInfo>>(1);
+        let (sender, reader) = channel::bounded::<Arc<GameSessionInfo>>(1);
 
         let session_uuid = Uuid::new_v4();
 
-        let _ = thread::Builder::new()
+        let _ = task::Builder::new()
             .name(format!("Game Instance {}", session_uuid.as_braced()))
-            .spawn(move || {
+            .spawn(async move {
                 let (mut session, info) = Self::new(state, recorded);
                 session.uuid = session_uuid;
 
-                sender.send(info).unwrap();
+                sender.send(info).await.unwrap();
 
-                if let Err(e) = session.run() {
+                if let Err(e) = session.run().await {
                     eprintln!("{}: error {e}", session_uuid.as_braced());
                 }
 
                 println!("{}: terminated", session_uuid.as_braced());
             })?;
 
-        let info = reader.recv()?;
+        let info = task::block_on(async { reader.recv().await })?;
 
         Ok(info)
     }

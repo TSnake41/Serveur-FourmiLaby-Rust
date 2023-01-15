@@ -81,10 +81,12 @@ fn update_player_position(
 
             if through_wall_dest {
                 // There should be a wall (or no tile) in the opposite direction
+                /*
                 println!(
                     "Missing wall at ({new_px} {new_py}), from ({} {})",
                     player.position.0, player.position.1
                 );
+                */
             }
 
             // Update the player position if there is a tile at the

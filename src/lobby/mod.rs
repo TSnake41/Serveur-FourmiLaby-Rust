@@ -3,13 +3,7 @@ pub mod message;
 
 use std::{
     collections::HashMap,
-    net::TcpListener,
-    sync::{
-        self,
-        mpsc::{self, Sender},
-        Arc,
-    },
-    thread,
+    sync::{self, Arc},
     time::Duration,
 };
 
@@ -20,6 +14,11 @@ use crate::{
     game::{state::GameState, GameSession, GameSessionInfo},
     maze::generate_basic_maze,
     message::types::JoinMessageBody,
+};
+use async_std::{
+    channel::{self, Sender},
+    net::TcpListener,
+    task,
 };
 use message::{LobbyMessage, MatchmakingInfo};
 
@@ -44,47 +43,52 @@ impl Lobby {
         }
     }
 
-    fn lobby(send: &Sender<LobbyMessage>, listener: TcpListener) -> ! {
+    async fn lobby(send: &Sender<LobbyMessage>, listener: TcpListener) -> ! {
         loop {
-            let (mut stream, addr) = listener.accept().unwrap();
+            let (mut stream, addr) = listener.accept().await.unwrap();
             println!("[{addr}] connected");
 
             let channel = send.clone();
 
             // Create a new client session
-            thread::Builder::new()
+            task::Builder::new()
                 .name(format!("client session {}", addr))
-                .spawn(move || client::client_session_init(&mut stream, channel))
+                .spawn(async move { client::client_session_init(&mut stream, channel).await })
                 .unwrap();
         }
     }
 
-    pub fn run(mut self, listener: TcpListener) -> Result<(), ServerError> {
+    pub async fn run(mut self, listener: TcpListener) -> Result<(), ServerError> {
         println!("Lobby loop listening on {}", listener.local_addr()?);
 
-        let (sender, receiver) = mpsc::channel::<LobbyMessage>();
+        let (sender, receiver) = channel::unbounded::<LobbyMessage>();
 
         let housekeep_sender = sender.clone();
 
-        let _housekeep_thread = thread::Builder::new()
+        let _housekeep_thread = task::Builder::new()
             .name(String::from("housekeep thread"))
-            .spawn(move || loop {
-                thread::sleep(LOBBY_HOUSEKEEP_DELAY);
-                housekeep_sender.send(LobbyMessage::Housekeep).unwrap();
+            .spawn(async move {
+                loop {
+                    task::sleep(LOBBY_HOUSEKEEP_DELAY).await;
+                    housekeep_sender
+                        .send(LobbyMessage::Housekeep)
+                        .await
+                        .unwrap();
+                }
             })?;
 
-        let _accept_thread = thread::Builder::new()
+        let _accept_thread = task::Builder::new()
             .name(String::from("lobby accept"))
-            .spawn(move || Self::lobby(&sender, listener))?;
+            .spawn(async move { Self::lobby(&sender, listener).await })?;
 
         loop {
-            let msg = receiver.recv().unwrap();
+            let msg = receiver.recv().await.unwrap();
 
             match msg {
                 LobbyMessage::Matchmaking(body, channel) => {
                     let info = self.find_suitable_game(&body);
 
-                    channel.lock().unwrap().send(info.clone())?;
+                    channel.send(info.clone()).await?;
 
                     // Register player UUID if it gets connected.
                     if let MatchmakingInfo::JoinedGame(uuid, session) = info {
@@ -124,7 +128,7 @@ impl Lobby {
             generate_basic_maze(6)?
         };
 
-        let session = GameSession::start_new(GameState::new(maze), true);
+        let session = GameSession::start_new(GameState::new(maze), false);
 
         if let Ok(info) = &session {
             // Add the game to the list.

@@ -1,10 +1,10 @@
 //! Small client demo.
+use async_std::{net::TcpStream, task};
 use core::time;
 use std::{
-    net::{SocketAddr, TcpStream},
+    net::SocketAddr,
     str::FromStr,
-    thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -15,12 +15,61 @@ use crate::{
     },
 };
 
-pub fn client_test() -> Result<(), ServerError> {
-    thread::sleep(time::Duration::from_secs(4));
+pub async fn client_benchmark() -> Result<(), ServerError> {
+    task::sleep(time::Duration::from_secs(4)).await;
+
+    let mut stream = TcpStream::connect(SocketAddr::from_str("127.0.0.1:8080").unwrap())
+        .await
+        .unwrap();
+
+    write_message(
+        &mut stream,
+        &Message::Join(JoinMessageBody {
+            difficulty: 1,
+            player_id: None,
+        }),
+    )
+    .await?;
+
+    let message = read_message(&mut stream).await?;
+
+    match message {
+        Message::OkMaze(ok_maze) => {
+            println!(
+                "as {}, in {}x{} maze",
+                ok_maze.player_id, ok_maze.maze.nb_column, ok_maze.maze.nb_line
+            );
+        }
+        _ => return Err(ServerError::Transmission("Invalid message received".into())),
+    }
+
+    let move_msg = Message::Move(MoveMessageBody { direction: 2 });
+
+    let start = Instant::now();
+
+    let mut count = 0u64;
+
+    // Stress-test server
+    while start.elapsed().as_secs() < 10 {
+        write_message(&mut stream, &move_msg).await?;
+        read_message(&mut stream).await?;
+
+        count += 1;
+    }
+
+    println!("{} msg/sec", count as f64 / 10.0);
+
+    Ok(())
+}
+
+pub async fn client_test() -> Result<(), ServerError> {
+    task::sleep(time::Duration::from_secs(4)).await;
+
     for _ in 0..5 {
-        thread::spawn(|| {
-            let mut stream =
-                TcpStream::connect(SocketAddr::from_str("127.0.0.1:8080").unwrap()).unwrap();
+        task::spawn(async {
+            let mut stream = TcpStream::connect(SocketAddr::from_str("127.0.0.1:8080").unwrap())
+                .await
+                .unwrap();
 
             write_message(
                 &mut stream,
@@ -29,10 +78,11 @@ pub fn client_test() -> Result<(), ServerError> {
                     player_id: None,
                 }),
             )
+            .await
             .unwrap();
 
             for _ in 0..5 {
-                read_message(&mut stream).unwrap();
+                read_message(&mut stream).await.unwrap();
 
                 for i in 0..=20 {
                     write_message(
@@ -47,22 +97,23 @@ pub fn client_test() -> Result<(), ServerError> {
                             },
                         }),
                     )
+                    .await
                     .unwrap();
 
-                    thread::sleep(Duration::from_millis(40));
+                    task::sleep(Duration::from_millis(40)).await;
 
-                    let info = read_message(&mut stream).unwrap();
+                    let info = read_message(&mut stream).await.unwrap();
 
                     if let Message::Info(body) = info {
                         println!("{body:?}");
                     }
                 }
 
-                read_message(&mut stream).unwrap();
+                read_message(&mut stream).await.unwrap();
             }
         });
 
-        thread::sleep(Duration::from_millis(15));
+        task::sleep(Duration::from_millis(15)).await;
     }
 
     Ok(())

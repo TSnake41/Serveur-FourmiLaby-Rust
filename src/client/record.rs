@@ -1,8 +1,8 @@
 //! Record replay system.
-use std::{
+use async_std::{
+    channel::{self, Receiver},
     net::TcpStream,
-    sync::mpsc::{self, Receiver},
-    thread,
+    task,
 };
 
 use crate::{
@@ -13,52 +13,57 @@ use crate::{
 };
 
 /// Create and replay a game using [`GameRecord`], send the infos in [`TcpStream`].
-fn replay_game(stream: TcpStream, game_record: GameRecord) -> Result<(), ServerError> {
+async fn replay_game(stream: TcpStream, game_record: GameRecord) -> Result<(), ServerError> {
     // Create a new game, and take its
     let info = GameSession::start_new(GameState::new(game_record.maze), false)?;
-    let game_channel = info.channel.lock()?.clone();
+    let game_channel = info.channel.clone();
 
-    let (send_channel, recv_channel) = mpsc::channel::<Message>();
+    let (send_channel, recv_channel) = channel::unbounded::<Message>();
 
     // Initialize all the players of the record.
-    game_record.players.iter().for_each(|uuid| {
+    for uuid in game_record.players.iter() {
         game_channel
             .send(GameSessionMessage(
                 *uuid,
                 GameSessionMessageKind::InitializePlayer(send_channel.clone()),
             ))
+            .await
+            .unwrap()
+    }
+
+    // Make a thread that will receive messages from game session, and forward the to the stream.
+    let forward_thread = task::spawn(async move {
+        replay_game_forward_thread(stream, recv_channel)
+            .await
             .unwrap()
     });
 
-    // Make a thread that will receive messages from game session, and forward the to the stream.
-    let forward_thread =
-        thread::spawn(move || replay_game_forward_thread(stream, recv_channel).unwrap());
-
     // Reuse this thread to send events to server considering delays.
     for record in game_record.messages.iter() {
-        thread::sleep(record.delay);
+        task::sleep(record.delay).await;
 
         game_channel
             .send(GameSessionMessage(
                 record.player,
                 GameSessionMessageKind::ClientMessage(record.message.clone()),
             ))
+            .await
             .unwrap()
     }
 
-    forward_thread.join().unwrap();
+    forward_thread.await;
 
     Ok(())
 }
 
 /// Pipe the messages from the [`Receiver<Message>`] into the [`TcpStream`].
-fn replay_game_forward_thread(
+async fn replay_game_forward_thread(
     mut stream: TcpStream,
     receiver: Receiver<Message>,
 ) -> Result<(), ServerError> {
-    receiver
-        .into_iter()
-        .for_each(|message| write_message(&mut stream, &message).unwrap());
+    while let Ok(message) = receiver.try_recv() {
+        write_message(&mut stream, &message).await.unwrap()
+    }
 
     Ok(())
 }

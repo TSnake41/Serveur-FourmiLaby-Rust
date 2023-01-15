@@ -1,6 +1,6 @@
 //! Types of messages that the lobby uses.
-use std::sync::{mpsc::Sender, Arc, Mutex};
-
+use async_std::channel::Sender;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{error::ServerError, game::GameSessionInfo, message::types::JoinMessageBody};
@@ -16,6 +16,6 @@ pub enum MatchmakingInfo {
 
 /// Message sent by the client thread or housekeeping timer thread to the lobby thread.
 pub enum LobbyMessage {
-    Matchmaking(JoinMessageBody, Mutex<Sender<MatchmakingInfo>>),
+    Matchmaking(JoinMessageBody, Sender<MatchmakingInfo>),
     Housekeep,
 }

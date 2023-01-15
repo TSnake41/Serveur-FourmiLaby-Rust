@@ -70,7 +70,7 @@ impl From<serde_json::Error> for ServerError {
     }
 }
 
-impl From<std::io::Error> for ServerError {
+impl From<async_std::io::Error> for ServerError {
     fn from(err: std::io::Error) -> Self {
         ServerError::Transmission(err.to_string().into_boxed_str())
     }
@@ -82,14 +82,14 @@ impl<T> From<std::sync::PoisonError<T>> for ServerError {
     }
 }
 
-impl<T> From<std::sync::mpsc::SendError<T>> for ServerError {
-    fn from(err: std::sync::mpsc::SendError<T>) -> Self {
+impl<T> From<async_std::channel::SendError<T>> for ServerError {
+    fn from(err: async_std::channel::SendError<T>) -> Self {
         ServerError::Other(format!("{:?}", err).into_boxed_str())
     }
 }
 
-impl From<std::sync::mpsc::RecvError> for ServerError {
-    fn from(err: std::sync::mpsc::RecvError) -> Self {
+impl From<async_std::channel::RecvError> for ServerError {
+    fn from(err: async_std::channel::RecvError) -> Self {
         ServerError::Other(format!("{:?}", err).into_boxed_str())
     }
 }

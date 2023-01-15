@@ -1,11 +1,10 @@
 //! The client session management.
 mod record;
-
-use std::{
-    net::{Shutdown, TcpStream},
-    sync::mpsc::{self, Receiver, Sender},
+use async_std::{
+    channel::{self, Receiver, Sender},
+    net::TcpStream,
 };
-
+use std::net::Shutdown;
 use uuid::Uuid;
 
 use crate::{
@@ -19,13 +18,13 @@ use crate::{
 };
 
 /// Instanciate a client negociation with with the lobby.
-pub fn client_session_init(
+pub async fn client_session_init(
     client: &mut TcpStream,
     channel: Sender<LobbyMessage>,
 ) -> Result<(), ServerError> {
-    let res = match read_message(client) {
+    let res = match read_message(client).await {
         // Received join
-        Ok(Message::Join(body)) => client_session_negociate(client, channel, body),
+        Ok(Message::Join(body)) => client_session_negociate(client, channel, body).await,
 
         // Received something else
         // Send Unexpected message error to client.
@@ -36,7 +35,8 @@ pub fn client_session_init(
                     expected: vec!["join".into()],
                     received: unexpected.into(),
                 },
-            )?;
+            )
+            .await?;
 
             Err(ServerError::Transmission(
                 "Unexpected message received".into(),
@@ -48,7 +48,9 @@ pub fn client_session_init(
     };
 
     if let Err(err) = &res {
-        write_message(client, &Message::Error(err.clone())).ok();
+        write_message(client, &Message::Error(err.clone()))
+            .await
+            .ok();
     }
 
     let shutdown_res = client
@@ -65,20 +67,22 @@ pub fn client_session_init(
 }
 
 /// Negociate a game session with the lobby.
-fn client_session_negociate(
+async fn client_session_negociate(
     client: &mut TcpStream,
     sender: Sender<LobbyMessage>,
     body: JoinMessageBody,
 ) -> Result<(), ServerError> {
     println!("Started client session (UUID = {:?})", body.player_id);
 
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = channel::unbounded();
 
-    sender.send(LobbyMessage::Matchmaking(body, tx.into()))?;
+    sender
+        .send(LobbyMessage::Matchmaking(body, tx.into()))
+        .await?;
 
     // receive matchmaking information from lobby
     // that way, we get the ok maze that also contains the player UUID used internally
-    match rx.recv() {
+    match rx.recv().await {
         // Ok with OkMaze
         Ok(MatchmakingInfo::JoinedGame(uuid, game_session)) => {
             write_message(
@@ -87,7 +91,8 @@ fn client_session_negociate(
                     maze: game_session.maze.clone(),
                     player_id: uuid,
                 }),
-            )?;
+            )
+            .await?;
 
             // Split the client session in two parts:
             //  - receiving messages from game session and forwarding them to socket (sender)
@@ -96,67 +101,80 @@ fn client_session_negociate(
             // Put the sender in another thread, and reuse the current thread for the receiver.
 
             // Create a channel between the game session and the sending thread.
-            let (sender_tx, sender_rx) = mpsc::channel::<Message>();
+            let (sender_tx, sender_rx) = channel::unbounded();
 
             // Duplicate the socket into a write end.
-            let mut sender_client = client.try_clone().unwrap();
+            let mut sender_client = client.clone();
 
             // Fetch the game session channel then notify the game session of this new player.
-            let game_session_channel = game_session.channel.lock()?.clone();
+            let game_session_channel = game_session.channel.clone();
 
-            game_session_channel.send(GameSessionMessage(
-                uuid,
-                GameSessionMessageKind::InitializePlayer(sender_tx),
-            ))?;
+            game_session_channel
+                .send(GameSessionMessage(
+                    uuid,
+                    GameSessionMessageKind::InitializePlayer(sender_tx),
+                ))
+                .await?;
 
-            std::thread::Builder::new()
+            async_std::task::Builder::new()
                 .name(format!("client send {}", client.peer_addr()?))
-                .spawn(move || client_session_send_loop(&mut sender_client, sender_rx))?;
+                .spawn(async move {
+                    client_session_send_loop(&mut sender_client, sender_rx)
+                        .await
+                        .unwrap()
+                })?;
 
             // Receiver loop
-            client_session_recv_loop(client, game_session_channel, uuid)?;
+            client_session_recv_loop(client, game_session_channel, uuid).await?;
         }
 
         // UUID is not recognized by lobby.
-        Ok(MatchmakingInfo::ExpiredUuid) => write_message(
-            client,
-            &Message::Error(ServerError::Other(
-                "Invalid UUID or game doesn't exist anymore.".into(),
-            )),
-        )?,
+        Ok(MatchmakingInfo::ExpiredUuid) => {
+            write_message(
+                client,
+                &Message::Error(ServerError::Other(
+                    "Invalid UUID or game doesn't exist anymore.".into(),
+                )),
+            )
+            .await?
+        }
 
         // Internal failures.
-        Ok(MatchmakingInfo::InternalFailure(e)) => write_message(client, &Message::Error(e))?,
-        Err(err) => write_message(client, &Message::Error(ServerError::other(err)))?,
+        Ok(MatchmakingInfo::InternalFailure(e)) => {
+            write_message(client, &Message::Error(e)).await?
+        }
+        Err(err) => write_message(client, &Message::Error(ServerError::other(err))).await?,
     };
 
     Ok(())
 }
 
 /// Client [`Message`] (from [`GameSessionMessage`]) receiving loop.
-fn client_session_recv_loop(
+async fn client_session_recv_loop(
     client: &mut TcpStream,
     channel: Sender<GameSessionMessage>,
     uuid: Uuid,
 ) -> Result<(), ServerError> {
     loop {
-        let msg = read_message(client)?;
+        let msg = read_message(client).await?;
 
-        channel.send(GameSessionMessage(
-            uuid,
-            GameSessionMessageKind::ClientMessage(msg),
-        ))?;
+        channel
+            .send(GameSessionMessage(
+                uuid,
+                GameSessionMessageKind::ClientMessage(msg),
+            ))
+            .await?;
     }
 }
 
 /// Client [`Message`] sending loop.
-fn client_session_send_loop(
+async fn client_session_send_loop(
     client: &mut TcpStream,
     receiver: Receiver<Message>,
 ) -> Result<(), ServerError> {
     loop {
-        let msg = receiver.recv()?;
+        let msg = receiver.recv().await?;
 
-        write_message(client, &msg)?;
+        write_message(client, &msg).await?;
     }
 }
