@@ -7,8 +7,10 @@ use std::{
 
 use crate::{
     error::ServerError,
-    game::record::GameRecord,
-    game::{state::GameState, GameSession, GameSessionMessage, GameSessionMessageKind},
+    game::{
+        record::GameRecord, state::GameState, GameSession, GameSessionMessage,
+        GameSessionMessageKind,
+    },
     message::{transmit::write_message, types::Message},
 };
 

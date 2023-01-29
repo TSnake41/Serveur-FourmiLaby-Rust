@@ -1,19 +1,66 @@
 //! Small client demo.
 use core::time;
 use std::{
+    io::BufReader,
     net::{SocketAddr, TcpStream},
     str::FromStr,
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{
     error::ServerError,
     message::{
-        transmit::{read_message, write_message},
+        transmit::{read_message, read_message_raw, write_message, write_message_raw},
         types::{JoinMessageBody, Message, MoveMessageBody},
     },
 };
+
+pub fn client_benchmark() -> Result<(), ServerError> {
+    thread::sleep(time::Duration::from_secs(4));
+
+    let mut stream = TcpStream::connect(SocketAddr::from_str("127.0.0.1:8080").unwrap()).unwrap();
+
+    write_message(
+        &mut stream,
+        &Message::Join(JoinMessageBody {
+            difficulty: 1,
+            player_id: None,
+        }),
+    )?;
+
+    let message = read_message(&mut stream)?;
+
+    match message {
+        Message::OkMaze(ok_maze) => {
+            println!(
+                "as {}, in {}x{} maze",
+                ok_maze.player_id, ok_maze.maze.nb_column, ok_maze.maze.nb_line
+            );
+        }
+        _ => return Err(ServerError::Transmission("Invalid message received".into())),
+    }
+
+    let move_msg = serde_json::to_string(&Message::Move(MoveMessageBody { direction: 2 })).unwrap();
+
+    let start = Instant::now();
+
+    let mut count = 0u64;
+
+    //let mut recv_stream = BufReader::new(stream.try_clone().unwrap());
+
+    // Stress-test server
+    while start.elapsed().as_secs() < 10 {
+        write_message_raw(&mut stream, move_msg.as_bytes())?;
+        read_message_raw(&mut stream)?;
+
+        count += 1;
+    }
+
+    println!("{} msg/sec", count as f64 / 10.0);
+
+    Ok(())
+}
 
 pub fn client_test() -> Result<(), ServerError> {
     thread::sleep(time::Duration::from_secs(4));

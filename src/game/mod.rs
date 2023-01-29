@@ -17,7 +17,10 @@ use uuid::Uuid;
 
 use crate::{
     error::ServerError,
-    game::{state::{GameState, PlayerInfo}, record::GameRecord},
+    game::{
+        record::GameRecord,
+        state::{GameState, PlayerInfo},
+    },
     maze::Maze,
     message::types::{InfoMessageBody, Message},
 };
@@ -303,7 +306,7 @@ impl GameSession {
         // TODO: Maybe make it asynchronous using lobby's channel ?
 
         // Send GameSessionInfo through a channel.
-        let (sender, reader) = mpsc::sync_channel::<Arc<GameSessionInfo>>(1);
+        let (sender, reader) = mpsc::sync_channel::<Arc<GameSessionInfo>>(0);
 
         let session_uuid = Uuid::new_v4();
 

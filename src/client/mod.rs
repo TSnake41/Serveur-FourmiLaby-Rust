@@ -2,6 +2,7 @@
 mod record;
 
 use std::{
+    io::BufReader,
     net::{Shutdown, TcpStream},
     sync::mpsc::{self, Receiver, Sender},
 };
@@ -139,8 +140,10 @@ fn client_session_recv_loop(
     channel: Sender<GameSessionMessage>,
     uuid: Uuid,
 ) -> Result<(), ServerError> {
+    let mut client = BufReader::new(client);
+
     loop {
-        let msg = read_message(client)?;
+        let msg = read_message(&mut client)?;
 
         channel.send(GameSessionMessage(
             uuid,

@@ -2,6 +2,8 @@
 marp: true
 theme: gaia
 class: invert
+paginate: true
+author: Teddy Astie
 ---
 
 ## Projet Programmation et Génie Logiciel

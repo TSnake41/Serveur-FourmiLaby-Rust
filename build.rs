@@ -9,7 +9,7 @@ fn main() {
             //println!("cargo:rustc-link-lib=c++abi");
             println!("cargo:rustc-link-lib=projetfourmis");
             println!("cargo:rustc-link-lib=dylib=stdc++");
-        },
+        }
         #[cfg(not(feature = "external_maze_gen"))]
         () => {}
     }
