@@ -10,7 +10,7 @@ use crate::error::ServerError;
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum NestPositioning {
     Randomized,
-    Fixed(u32, u32)
+    Fixed(u32, u32),
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
@@ -23,7 +23,7 @@ pub struct GeneratorConfig {
     pub nb_food_coeff: f32,
 
     pub basic_generator_size: u32,
-    pub nest_pos: NestPositioning
+    pub nest_pos: NestPositioning,
 }
 
 impl Default for GeneratorConfig {
@@ -37,7 +37,7 @@ impl Default for GeneratorConfig {
             nb_food_coeff: 0.25,
             basic_generator_size: 6,
 
-            nest_pos: NestPositioning::Fixed(1, 1)
+            nest_pos: NestPositioning::Fixed(1, 1),
         }
     }
 }
@@ -52,7 +52,7 @@ impl Default for LobbyConfig {
     fn default() -> Self {
         Self {
             record_games: false,
-            generator: Default::default()
+            generator: Default::default(),
         }
     }
 }
@@ -80,7 +80,7 @@ pub fn load_config(config_path: Option<&str>) -> Result<ServerConfig, ServerErro
     let path_str = config_path.unwrap_or(DEFAULT_CONFIG_PATH);
 
     match fs::read_to_string(path_str) {
-        Ok(content) => serde_json::from_str(content.as_str())?,
+        Ok(content) => Ok(serde_json::from_str::<ServerConfig>(content.as_str())?),
         Err(err) => {
             println!("Unable to read config ({err}), regenerate config.");
 
