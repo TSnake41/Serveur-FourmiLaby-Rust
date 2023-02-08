@@ -1,4 +1,6 @@
 //! Small client demo.
+#![cfg(debug_assertions)]
+
 use core::time;
 use std::{
     io::BufReader,
@@ -47,12 +49,12 @@ pub fn client_benchmark() -> Result<(), ServerError> {
 
     let mut count = 0u64;
 
-    //let mut recv_stream = BufReader::new(stream.try_clone().unwrap());
+    let mut recv_stream = BufReader::new(stream.try_clone().unwrap());
 
     // Stress-test server
     while start.elapsed().as_secs() < 10 {
         write_message_raw(&mut stream, move_msg.as_bytes())?;
-        read_message_raw(&mut stream)?;
+        read_message_raw(&mut recv_stream)?;
 
         count += 1;
     }

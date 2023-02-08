@@ -15,8 +15,9 @@ use std::{
 
 use crate::{
     client,
+    config::LobbyConfig,
     error::ServerError,
-    external::generator::{generate_maze, ParamMaze},
+    external::generator::generate_maze,
     game::{state::GameState, GameSession, GameSessionInfo},
     maze::generate_basic_maze,
     message::types::JoinMessageBody,
@@ -33,14 +34,18 @@ pub struct Lobby {
     // by unfreed weak pointers.
     games: Vec<sync::Weak<GameSessionInfo>>,
     players: HashMap<Uuid, sync::Weak<GameSessionInfo>>,
+    config: LobbyConfig,
+    rng: fastrand::Rng,
 }
 
 impl Lobby {
     /// Create a new empty lobby.
-    pub fn new() -> Self {
+    pub fn new(config: LobbyConfig) -> Self {
         Lobby {
             games: Vec::with_capacity(4),
             players: HashMap::with_capacity(64),
+            config,
+            rng: fastrand::Rng::new(),
         }
     }
 
@@ -110,21 +115,12 @@ impl Lobby {
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
         let maze = if cfg!(feature = "external_maze_gen") {
-            generate_maze(
-                &(ParamMaze {
-                    nb_column: 5 + 3 * critera.difficulty,
-                    nb_line: 4 + 3 * critera.difficulty,
-                    nest_column: 1,
-                    nest_line: 1,
-                    nb_food: 1 + critera.difficulty / 4,
-                    difficulty: critera.difficulty,
-                }),
-            )?
+            generate_maze(critera, &self.config.generator, &self.rng)?
         } else {
             generate_basic_maze(6)?
         };
 
-        let session = GameSession::start_new(GameState::new(maze), true);
+        let session = GameSession::start_new(GameState::new(maze), self.config.record_games);
 
         if let Ok(info) = &session {
             // Add the game to the list.
