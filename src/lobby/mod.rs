@@ -142,8 +142,8 @@ impl Lobby {
             // Create a new session.
             None => {
                 // TODO: Find matching session, use proper matchmaking
-                if let Some(session) = self.games.first() {
-                    MatchmakingInfo::JoinedGame(Uuid::new_v4(), session.upgrade().unwrap())
+                if let Some(session) = self.games.first().and_then(|session| session.upgrade()) {
+                    MatchmakingInfo::JoinedGame(Uuid::new_v4(), session)
                 } else {
                     match self.create_new_game(join_message) {
                         Ok(game) => MatchmakingInfo::JoinedGame(Uuid::new_v4(), game),
