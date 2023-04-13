@@ -1,6 +1,5 @@
 //! Record replay system.
 use std::{
-    net::TcpStream,
     sync::mpsc::{self, Receiver},
     thread,
 };
@@ -11,11 +10,15 @@ use crate::{
         record::GameRecord, state::GameState, GameSession, GameSessionMessage,
         GameSessionMessageKind,
     },
-    message::{transmit::write_message, types::Message},
+    message::types::Message,
+    protocols::ClientChannel,
 };
 
 /// Create and replay a game using [`GameRecord`], send the infos in [`TcpStream`].
-fn replay_game(stream: TcpStream, game_record: GameRecord) -> Result<(), ServerError> {
+pub fn replay_game<C: ClientChannel>(
+    channel: C,
+    game_record: GameRecord,
+) -> Result<(), ServerError> {
     // Create a new game, and take its
     let info = GameSession::start_new(GameState::new(game_record.maze), false)?;
     let game_channel = info.channel.lock()?.clone();
@@ -34,7 +37,7 @@ fn replay_game(stream: TcpStream, game_record: GameRecord) -> Result<(), ServerE
 
     // Make a thread that will receive messages from game session, and forward the to the stream.
     let forward_thread =
-        thread::spawn(move || replay_game_forward_thread(stream, recv_channel).unwrap());
+        thread::spawn(move || replay_game_forward_thread(channel, recv_channel).unwrap());
 
     // Reuse this thread to send events to server considering delays.
     for record in game_record.messages.iter() {
@@ -54,13 +57,13 @@ fn replay_game(stream: TcpStream, game_record: GameRecord) -> Result<(), ServerE
 }
 
 /// Pipe the messages from the [`Receiver<Message>`] into the [`TcpStream`].
-fn replay_game_forward_thread(
-    mut stream: TcpStream,
+pub fn replay_game_forward_thread<C: ClientChannel>(
+    mut channel: C,
     receiver: Receiver<Message>,
 ) -> Result<(), ServerError> {
     receiver
         .into_iter()
-        .for_each(|message| write_message(&mut stream, &message).unwrap());
+        .for_each(|message| channel.write_message(&message).unwrap());
 
     Ok(())
 }

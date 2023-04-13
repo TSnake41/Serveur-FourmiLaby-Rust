@@ -1,16 +1,8 @@
-mod client;
 mod client_test;
-mod config;
-mod error;
-mod external;
-mod game;
-mod lobby;
-mod maze;
-mod message;
 
 use std::net::{SocketAddr, TcpListener};
 
-use error::ServerError;
+use fourmilaby_core::{config, error::ServerError, lobby};
 
 fn main() -> Result<(), ServerError> {
     // Start basic client test.

@@ -1,9 +1,9 @@
 //! Lobby creation and loops.
+mod handler;
 pub mod message;
 
 use std::{
     collections::HashMap,
-    net::TcpListener,
     sync::{
         self,
         mpsc::{self, Sender},
@@ -14,13 +14,12 @@ use std::{
 };
 
 use crate::{
-    client,
     config::LobbyConfig,
     error::ServerError,
-    external::generator::generate_maze,
     game::{state::GameState, GameSession, GameSessionInfo},
     maze::generate_basic_maze,
     message::types::JoinMessageBody,
+    protocols::{ClientChannel, LobbyListener},
 };
 use message::{LobbyMessage, MatchmakingInfo};
 
@@ -49,9 +48,12 @@ impl Lobby {
         }
     }
 
-    fn lobby(send: &Sender<LobbyMessage>, listener: TcpListener) -> ! {
+    fn lobby<C: ClientChannel, L: LobbyListener<C>>(
+        send: &Sender<LobbyMessage>,
+        mut listener: L,
+    ) -> ! {
         loop {
-            let (mut stream, addr) = listener.accept().unwrap();
+            let (stream, addr) = listener.accept_client().unwrap();
             println!("[{addr}] connected");
 
             let channel = send.clone();
@@ -59,13 +61,20 @@ impl Lobby {
             // Create a new client session
             thread::Builder::new()
                 .name(format!("client session {}", addr))
-                .spawn(move || client::client_session_init(&mut stream, channel))
+                .spawn(move || handler::client_session_init(stream, channel))
                 .unwrap();
         }
     }
 
-    pub fn run(mut self, listener: TcpListener) -> Result<(), ServerError> {
-        println!("Lobby loop listening on {}", listener.local_addr()?);
+    pub fn run<C: ClientChannel, L: LobbyListener<C>>(
+        mut self,
+        listener: L,
+    ) -> Result<(), ServerError> {
+        if let Some(name) = listener.get_binding_name() {
+            println!("Lobby loop listening on {name}");
+        } else {
+            println!("Lobby loop listening");
+        }
 
         let (sender, receiver) = mpsc::channel::<LobbyMessage>();
 
@@ -114,11 +123,12 @@ impl Lobby {
         &mut self,
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
-        let maze = if cfg!(feature = "external_maze_gen") {
-            generate_maze(critera, &self.config.generator, &self.rng)?
+        let maze = generate_basic_maze(6)?;
+        /*if cfg!(feature = "external_maze_gen") {
+            //generate_maze(critera, &self.config.generator, &self.rng)?
         } else {
-            generate_basic_maze(6)?
-        };
+
+        };*/
 
         let session = GameSession::start_new(GameState::new(maze), self.config.record_games);
 

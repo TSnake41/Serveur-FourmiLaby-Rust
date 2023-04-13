@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{
+use fourmilaby_core::{
     error::ServerError,
     message::{
         transmit::{read_message, read_message_raw, write_message, write_message_raw},
