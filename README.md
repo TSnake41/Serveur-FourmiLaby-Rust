@@ -1,6 +1,6 @@
 # Serveur FourmiLaby Rust
 
-This repository contains the Rust variant of the FourmiLaby Project's server (Polytech Tours DI4 S7 software engineering project).
+This repository contains the Rust variant of the FourmiLaby Project's server (Polytech Tours DI4 S7 software engineering project) which is continued as a research/side project.
 
 ## Building/Running
 
@@ -16,8 +16,4 @@ cargo build --release # release
 # (Building) and Running
 cargo run # debug
 cargo run --release # release
-
-# Add --features external_maze_gen to use an external maze generator
-# e.g
-cargo build --release --features external_maze_gen
 ```

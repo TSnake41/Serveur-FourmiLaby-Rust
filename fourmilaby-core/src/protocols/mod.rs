@@ -1,4 +1,6 @@
+//! Traits for protocol implementation.
 pub mod tcp;
+pub mod tungstenite;
 
 use std::borrow::Cow;
 
@@ -21,13 +23,13 @@ pub trait ClientChannel: Send + 'static {
     /// Send a message to the client instance.
     ///
     /// #### Note
-    /// See [`crate::transmit::read_message`]
+    /// See [`crate::message::transmit::read_message`]
     fn read_message(&mut self) -> Result<Message, ServerError>;
 
     /// Send a message to the client instance.
     ///
     /// #### Note
-    /// See [`crate::transmit::write_message`]
+    /// See [`crate::message::transmit::write_message`]
     fn write_message(&mut self, message: &Message) -> Result<(), ServerError>;
 
     /// Gracefully stop the instance.

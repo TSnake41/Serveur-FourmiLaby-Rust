@@ -17,7 +17,7 @@ use crate::{
     config::LobbyConfig,
     error::ServerError,
     game::{state::GameState, GameSession, GameSessionInfo},
-    maze::generate_basic_maze,
+    maze::generator::generate_empty_maze,
     message::types::JoinMessageBody,
     protocols::{ClientChannel, LobbyListener},
 };
@@ -89,7 +89,7 @@ impl Lobby {
 
         let _accept_thread = thread::Builder::new()
             .name(String::from("lobby accept"))
-            .spawn(move || Self::lobby(&sender, listener))?;
+            .spawn(move || -> ! { Self::lobby(&sender, listener) })?;
 
         loop {
             let msg = receiver.recv().unwrap();
@@ -123,12 +123,8 @@ impl Lobby {
         &mut self,
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
-        let maze = generate_basic_maze(6)?;
-        /*if cfg!(feature = "external_maze_gen") {
-            //generate_maze(critera, &self.config.generator, &self.rng)?
-        } else {
-
-        };*/
+        let maze = generate_empty_maze(5, 5)?;
+        // TODO: Make a better API, consider modifying critera.
 
         let session = GameSession::start_new(GameState::new(maze), self.config.record_games);
 

@@ -1,4 +1,4 @@
-//! The client session management.
+//! The client session management as seen from the lobby.
 use std::sync::mpsc::{self, Receiver, Sender};
 
 use uuid::Uuid;

@@ -1,3 +1,4 @@
+//! The original implementation of the TCP/IP protocol for this project.
 use std::{
     borrow::Cow,
     net::{Shutdown, TcpListener, TcpStream},

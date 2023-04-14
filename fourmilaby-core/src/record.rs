@@ -14,7 +14,7 @@ use crate::{
     protocols::ClientChannel,
 };
 
-/// Create and replay a game using [`GameRecord`], send the infos in [`TcpStream`].
+/// Create and replay a game using [`GameRecord`], send the infos in [`std::net::TcpStream`].
 pub fn replay_game<C: ClientChannel>(
     channel: C,
     game_record: GameRecord,
@@ -56,7 +56,7 @@ pub fn replay_game<C: ClientChannel>(
     Ok(())
 }
 
-/// Pipe the messages from the [`Receiver<Message>`] into the [`TcpStream`].
+/// Pipe the messages from the [`Receiver<Message>`] into the [`std::net::TcpStream`].
 pub fn replay_game_forward_thread<C: ClientChannel>(
     mut channel: C,
     receiver: Receiver<Message>,

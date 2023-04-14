@@ -1,3 +1,7 @@
+//! # Fourmilaby Rust Server
+//!
+//! This is a heavily work in progress research project made in Rust that is meant to be ant game/simulator
+//! that focuses on high performance and modularity. This project is meant to be used along <https://github.com/Akahara/AntsGame/>.
 pub mod client;
 pub mod config;
 pub mod error;

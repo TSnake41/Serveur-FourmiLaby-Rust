@@ -1,4 +1,4 @@
-//! Types of messages that the lobby uses.
+//! Types of messages that the lobby internally uses.
 use std::sync::{mpsc::Sender, Arc, Mutex};
 
 use uuid::Uuid;
