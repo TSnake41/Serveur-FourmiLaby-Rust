@@ -17,7 +17,7 @@ use crate::{
     config::LobbyConfig,
     error::ServerError,
     game::{state::GameState, GameSession, GameSessionInfo},
-    maze::generator::generate_empty_maze,
+    maze::generator::{generate_empty_maze, generate_df_maze},
     message::types::JoinMessageBody,
     protocols::{ClientChannel, LobbyListener},
 };
@@ -123,7 +123,7 @@ impl Lobby {
         &mut self,
         critera: &JoinMessageBody,
     ) -> Result<Arc<GameSessionInfo>, ServerError> {
-        let maze = generate_empty_maze(5, 5)?;
+        let maze = generate_df_maze(5, 5, 2)?;
         // TODO: Make a better API, consider modifying critera.
 
         let session = GameSession::start_new(GameState::new(maze), self.config.record_games);
