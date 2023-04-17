@@ -51,9 +51,9 @@ impl Lobby {
     fn lobby<C: ClientChannel, L: LobbyListener<C>>(
         send: &Sender<LobbyMessage>,
         mut listener: L,
-    ) -> ! {
+    ) -> Result<(), ServerError> {
         loop {
-            let (stream, addr) = listener.accept_client().unwrap();
+            let (stream, addr) = listener.accept_client()?;
             println!("[{addr}] connected");
 
             let channel = send.clone();
@@ -80,16 +80,16 @@ impl Lobby {
 
         let housekeep_sender = sender.clone();
 
-        let _housekeep_thread = thread::Builder::new()
+        thread::Builder::new()
             .name(String::from("housekeep thread"))
             .spawn(move || loop {
                 thread::sleep(LOBBY_HOUSEKEEP_DELAY);
                 housekeep_sender.send(LobbyMessage::Housekeep).unwrap();
             })?;
 
-        let _accept_thread = thread::Builder::new()
+        thread::Builder::new()
             .name(String::from("lobby accept"))
-            .spawn(move || -> ! { Self::lobby(&sender, listener) })?;
+            .spawn(move || Self::lobby(&sender, listener).unwrap())?;
 
         loop {
             let msg = receiver.recv().unwrap();
