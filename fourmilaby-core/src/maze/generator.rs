@@ -2,8 +2,14 @@
 //! Depth-first algorithm is inspired on Vincent Brunet's C++ implementation (Polytech Tours school of engineering).
 use std::collections::VecDeque;
 
+use fastrand::Rng;
+
 use super::Maze;
-use crate::error::ServerError;
+use crate::{
+    config::{GeneratorConfig, NestPositioning},
+    error::ServerError,
+    message::types::JoinMessageBody,
+};
 
 #[derive(Clone, Copy)]
 enum Movement {
@@ -63,7 +69,7 @@ impl Maze {
     }
 
     /// Add foods pseudo-randomly to the maze.
-    fn place_food(&mut self, food_count: u32) -> Result<Box<[(u32, u32)]>, ServerError> {
+    fn place_food(&mut self, food_count: u32, rng: &Rng) -> Result<Box<[(u32, u32)]>, ServerError> {
         // Be a little bit more conservative to prevent an eventual infinite loop.
         if food_count + 1 >= (self.nb_column.saturating_sub(1)) * (self.nb_line.saturating_sub(1)) {
             return Err(ServerError::invalid_maze("Can't place food"));
@@ -76,10 +82,7 @@ impl Maze {
         foods.reserve(food_count as usize);
 
         for _ in 0..food_count {
-            let proposal = (
-                fastrand::u32(0..self.nb_column),
-                fastrand::u32(0..self.nb_line),
-            );
+            let proposal = (rng.u32(0..self.nb_column), rng.u32(0..self.nb_line));
 
             /* Check minimum distance and already taken tile. */
             if (proposal.0 * proposal.0 + proposal.1 * proposal.1) < minimum_distance2
@@ -103,7 +106,8 @@ impl Maze {
     fn get_random_neighbor(
         &self,
         (column, line): (u32, u32),
-        marked: &Box<[bool]>,
+        marked: &[bool],
+        rng: &Rng,
     ) -> Option<(Movement, (u32, u32))> {
         let mut directions: [Movement; 4] = [
             Movement::Up,
@@ -111,7 +115,7 @@ impl Maze {
             Movement::Right,
             Movement::Left,
         ];
-        fastrand::shuffle(&mut directions);
+        rng.shuffle(&mut directions);
 
         for dir in directions {
             // Get neighbor position (if any).
@@ -134,7 +138,11 @@ impl Maze {
     }
 
     /// Apply the Depth-First Algorithm to carve the walls of the maze.
-    fn df_carving(&mut self, (start_column, start_line): (u32, u32)) -> Result<(), ServerError> {
+    fn df_carving(
+        &mut self,
+        (start_column, start_line): (u32, u32),
+        rng: &Rng,
+    ) -> Result<(), ServerError> {
         if start_column >= self.nb_column || start_line >= self.nb_line {
             return Err(ServerError::invalid_maze(format!(
                 "Unexpected start position: ({start_column}, {start_line}) (maximum: ({}, {}))",
@@ -150,7 +158,7 @@ impl Maze {
         tiles_queue.push_back((start_column, start_line));
 
         while let Some(tile) = tiles_queue.front() {
-            if let Some((dir, neighbor)) = self.get_random_neighbor(*tile, &marked_tiles) {
+            if let Some((dir, neighbor)) = self.get_random_neighbor(*tile, &marked_tiles, rng) {
                 // Break walls
                 match dir {
                     Movement::Up => {
@@ -204,7 +212,7 @@ impl Maze {
 }
 
 /// Generate a empty maze.
-pub fn generate_empty_maze(nb_column: u32, nb_line: u32) -> Result<Maze, ServerError> {
+pub fn generate_empty_maze(nb_column: u32, nb_line: u32, rng: &Rng) -> Result<Maze, ServerError> {
     if nb_column == 0 || nb_line == 0 {
         return Err(ServerError::invalid_maze("Can't generate an empty maze !"));
     }
@@ -218,27 +226,52 @@ pub fn generate_empty_maze(nb_column: u32, nb_line: u32) -> Result<Maze, ServerE
     };
 
     maze.generate_hull();
-    maze.place_food(1)?;
+    maze.place_food(1, rng)?;
 
     Ok(maze)
 }
 
-pub fn generate_df_maze(nb_column: u32, nb_line: u32, nb_food: u32) -> Result<Maze, ServerError> {
+pub fn generate_df_maze(
+    (nb_column, nb_line): (u32, u32),
+    (nest_column, nest_line): (u32, u32),
+    nb_food: u32,
+    rng: &Rng,
+) -> Result<Maze, ServerError> {
     if nb_column == 0 || nb_line == 0 {
         return Err(ServerError::invalid_maze("Can't generate an empty maze !"));
     }
 
     let mut maze = Maze {
-        nb_column: nb_column.into(),
-        nb_line: nb_line.into(),
-        nest_column: fastrand::u32(0..nb_column),
-        nest_line: fastrand::u32(0..nb_line),
+        nb_column,
+        nb_line,
+        nest_column,
+        nest_line,
         tiles: vec![0u8; (nb_column * nb_line) as usize].into_boxed_slice(),
     };
 
     maze.generate_hull();
-    maze.place_food(nb_food)?;
-    maze.df_carving((maze.nest_column, maze.nest_line))?;
+    maze.place_food(nb_food, rng)?;
+    maze.df_carving((nest_column, nest_line), rng)?;
 
     Ok(maze)
+}
+
+pub fn generate_maze(
+    config: &GeneratorConfig,
+    critera: &JoinMessageBody,
+    rng: &Rng,
+) -> Result<Maze, ServerError> {
+    let size = (
+        config.column_min + (config.column_coeff * critera.difficulty as f32) as u32,
+        config.line_min + (config.line_coeff * critera.difficulty as f32) as u32,
+    );
+
+    let nest_pos = match config.nest_pos {
+        NestPositioning::Randomized => (rng.u32(0..size.0), rng.u32(0..size.1)),
+        NestPositioning::Fixed(x, y) => (x, y),
+    };
+
+    let nb_food = config.nb_food_min + (config.nb_food_coeff * critera.difficulty as f32) as u32;
+
+    generate_df_maze(size, nest_pos, nb_food, rng)
 }
