@@ -1,2 +1,2 @@
 [workspace]
-members = ["fourmilaby-core", "fourmilaby-server"]
+members = ["fourmilaby-core", "fourmilaby-server", "fourmilaby-client"]
