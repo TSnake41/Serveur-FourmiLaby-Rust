@@ -1,5 +1,3 @@
-mod client_test;
-
 use std::net::{SocketAddr, TcpListener};
 
 use fourmilaby_core::{config, error::ServerError, lobby};
