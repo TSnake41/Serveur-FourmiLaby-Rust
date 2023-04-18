@@ -68,6 +68,20 @@ impl Maze {
         }
     }
 
+    /// Fill the maze with walls.
+    fn fill_maze(&mut self) {
+        for x in 0..self.nb_column {
+            for y in 0..self.nb_line {
+                if let Some(tile) = self.get_tile_mut(x, y) {
+                    tile.set_wall_north(true);
+                    tile.set_wall_south(true);
+                    tile.set_wall_west(true);
+                    tile.set_wall_east(true);
+                }
+            }
+        }
+    }
+
     /// Add foods pseudo-randomly to the maze.
     fn place_food(&mut self, food_count: u32, rng: &Rng) -> Result<Box<[(u32, u32)]>, ServerError> {
         // Be a little bit more conservative to prevent an eventual infinite loop.
@@ -123,7 +137,7 @@ impl Maze {
                 // Get marker
                 match (
                     marked.get((pos.0 + pos.1 * self.nb_column) as usize),
-                    pos.0 < self.nb_column && pos.1 < self.nb_line, // check out of bounds
+                    pos.0 < self.nb_column && pos.1 < self.nb_line, // check in bounds
                 ) {
                     // Not marked and in bounds : OK
                     (Some(false), true) => return Some((dir, pos)),
@@ -156,48 +170,12 @@ impl Maze {
         let mut tiles_queue: VecDeque<(u32, u32)> = VecDeque::new();
 
         tiles_queue.push_back((start_column, start_line));
+        marked_tiles[(start_column + start_line * self.nb_column) as usize] = true;
 
         while let Some(tile) = tiles_queue.front() {
             if let Some((dir, neighbor)) = self.get_random_neighbor(*tile, &marked_tiles, rng) {
                 // Break walls
-                match dir {
-                    Movement::Up => {
-                        // N S
-                        self.get_tile_mut(tile.0, tile.1)
-                            .unwrap()
-                            .set_wall_north(false);
-                        self.get_tile_mut(neighbor.0, neighbor.1)
-                            .unwrap()
-                            .set_wall_south(false);
-                    }
-                    Movement::Down => {
-                        // S N
-                        self.get_tile_mut(tile.0, tile.1)
-                            .unwrap()
-                            .set_wall_south(false);
-                        self.get_tile_mut(neighbor.0, neighbor.1)
-                            .unwrap()
-                            .set_wall_north(false);
-                    }
-                    Movement::Right => {
-                        // E W
-                        self.get_tile_mut(tile.0, tile.1)
-                            .unwrap()
-                            .set_wall_east(false);
-                        self.get_tile_mut(neighbor.0, neighbor.1)
-                            .unwrap()
-                            .set_wall_west(false);
-                    }
-                    Movement::Left => {
-                        // W E
-                        self.get_tile_mut(tile.0, tile.1)
-                            .unwrap()
-                            .set_wall_west(false);
-                        self.get_tile_mut(neighbor.0, neighbor.1)
-                            .unwrap()
-                            .set_wall_east(false);
-                    }
-                }
+                self.break_wall(dir, &tile, neighbor);
 
                 tiles_queue.push_back(neighbor);
                 marked_tiles[(neighbor.0 + neighbor.1 * self.nb_column) as usize] = true;
@@ -207,7 +185,55 @@ impl Maze {
             }
         }
 
+        // Make sure the hull still exists.
+        self.generate_hull();
         Ok(())
+    }
+
+    /// Break a neighbor wall.
+    fn break_wall(&mut self, dir: Movement, tile: &(u32, u32), neighbor: (u32, u32)) {
+        match dir {
+            Movement::Up => {
+                // N S
+                if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
+                    tile.set_wall_north(false);
+                }
+
+                if let Some(tile) = self.get_tile_mut(neighbor.0, neighbor.1) {
+                    tile.set_wall_south(false);
+                }
+            }
+            Movement::Down => {
+                // S N
+                if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
+                    tile.set_wall_south(false);
+                }
+
+                if let Some(tile) = self.get_tile_mut(neighbor.0, neighbor.1) {
+                    tile.set_wall_north(false);
+                }
+            }
+            Movement::Right => {
+                // E W
+                if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
+                    tile.set_wall_east(false);
+                }
+
+                if let Some(tile) = self.get_tile_mut(neighbor.0, neighbor.1) {
+                    tile.set_wall_west(false);
+                }
+            }
+            Movement::Left => {
+                // W E
+                if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
+                    tile.set_wall_west(false);
+                }
+
+                if let Some(tile) = self.get_tile_mut(neighbor.0, neighbor.1) {
+                    tile.set_wall_east(false);
+                }
+            }
+        }
     }
 }
 
@@ -224,6 +250,11 @@ pub fn generate_empty_maze(nb_column: u32, nb_line: u32, rng: &Rng) -> Result<Ma
         nest_line: fastrand::u32(0..nb_line),
         tiles: vec![0u8; (nb_column * nb_line) as usize].into_boxed_slice(),
     };
+
+    // Place the nest
+    if let Some(tile) = maze.get_tile_mut(maze.nest_column, maze.nest_line) {
+        tile.set_nest(true);
+    }
 
     maze.generate_hull();
     maze.place_food(1, rng)?;
@@ -249,9 +280,17 @@ pub fn generate_df_maze(
         tiles: vec![0u8; (nb_column * nb_line) as usize].into_boxed_slice(),
     };
 
-    maze.generate_hull();
-    maze.place_food(nb_food, rng)?;
-    maze.df_carving((nest_column, nest_line), rng)?;
+    // Place the nest
+    if let Some(tile) = maze.get_tile_mut(maze.nest_column, maze.nest_line) {
+        tile.set_nest(true);
+    }
+
+    maze.fill_maze();
+    let foods = maze.place_food(nb_food, rng)?;
+
+    for food in foods.iter() {
+        maze.df_carving(*food, rng)?;
+    }
 
     Ok(maze)
 }
