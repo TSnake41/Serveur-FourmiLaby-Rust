@@ -22,6 +22,7 @@ pub struct GeneratorConfig {
     pub line_coeff: f32,
     pub nb_food_min: u32,
     pub nb_food_coeff: f32,
+    pub carving_amount: u32,
 
     pub basic_generator_size: u32,
     pub nest_pos: NestPositioning,
@@ -37,6 +38,7 @@ impl Default for GeneratorConfig {
             nb_food_min: 1,
             nb_food_coeff: 0.25,
             basic_generator_size: 6,
+            carving_amount: 2,
 
             nest_pos: NestPositioning::Fixed(1, 1),
         }
