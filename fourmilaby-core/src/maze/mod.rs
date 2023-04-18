@@ -157,7 +157,7 @@ impl Maze {
         } else {
             // Get the tile, should exist.
             self.tiles
-                .get((x + y * self.nb_line) as usize)
+                .get((x + y * self.nb_column) as usize)
                 .map(|tile| Tile(*tile))
         }
     }
@@ -169,7 +169,7 @@ impl Maze {
         } else {
             // Get the tile, should exist.
             self.tiles
-                .get_mut((x + y * self.nb_line) as usize)
+                .get_mut((x + y * self.nb_column) as usize)
                 .map(|x| unsafe {
                     // UNSAFE OK: Tile(u8) is repr(transparent)
                     mem::transmute(x)

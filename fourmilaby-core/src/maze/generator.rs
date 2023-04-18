@@ -62,7 +62,7 @@ impl Maze {
             self.get_tile_mut(0, i).unwrap().set_wall_west(true);
 
             // Right wall
-            self.get_tile_mut(self.nb_column - 1, 0)
+            self.get_tile_mut(self.nb_column - 1, i)
                 .unwrap()
                 .set_wall_east(true);
         }
