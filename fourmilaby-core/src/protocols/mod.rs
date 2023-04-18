@@ -18,15 +18,15 @@ pub trait LobbyListener<C>: Send + 'static {
     fn get_binding_name(&self) -> Option<Cow<str>>;
 }
 
-/// A channel to some client.
-pub trait ClientChannel: Send + 'static {
-    /// Send a message to the client instance.
+/// A channel to some client or server.
+pub trait PlayerChannel: Send + 'static {
+    /// Send a message to the remote instance.
     ///
     /// #### Note
     /// See [`crate::message::transmit::read_message`]
     fn read_message(&mut self) -> Result<Message, ServerError>;
 
-    /// Send a message to the client instance.
+    /// Send a message to the remote instance.
     ///
     /// #### Note
     /// See [`crate::message::transmit::write_message`]
@@ -35,7 +35,7 @@ pub trait ClientChannel: Send + 'static {
     /// Gracefully stop the instance.
     fn stop(&mut self) -> Result<(), ServerError>;
 
-    /// Duplicate the client instance handle.
+    /// Duplicate the instance handle.
     fn clone_instance(&self) -> Self;
 
     /// Get the name of the instance (if any).

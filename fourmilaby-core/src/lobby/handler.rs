@@ -8,11 +8,11 @@ use crate::{
     game::{GameSessionMessage, GameSessionMessageKind},
     lobby::message::{LobbyMessage, MatchmakingInfo},
     message::types::{JoinMessageBody, Message, OkMazeMessageBody},
-    protocols::ClientChannel,
+    protocols::PlayerChannel,
 };
 
 /// Instanciate a client negociation with with the lobby.
-pub fn client_session_init<C: ClientChannel>(
+pub fn client_session_init<C: PlayerChannel>(
     mut client: C,
     channel: Sender<LobbyMessage>,
 ) -> Result<(), ServerError> {
@@ -53,7 +53,7 @@ pub fn client_session_init<C: ClientChannel>(
 }
 
 /// Negociate a game session with the lobby.
-fn client_session_negociate<C: ClientChannel>(
+fn client_session_negociate<C: PlayerChannel>(
     mut client: C,
     sender: Sender<LobbyMessage>,
     body: JoinMessageBody,
@@ -119,7 +119,7 @@ fn client_session_negociate<C: ClientChannel>(
 }
 
 /// Client [`Message`] (from [`GameSessionMessage`]) receiving loop.
-fn client_session_recv_loop<C: ClientChannel>(
+fn client_session_recv_loop<C: PlayerChannel>(
     client: &mut C,
     channel: Sender<GameSessionMessage>,
     uuid: Uuid,
@@ -135,7 +135,7 @@ fn client_session_recv_loop<C: ClientChannel>(
 }
 
 /// Client [`Message`] sending loop.
-fn client_session_send_loop<C: ClientChannel>(
+fn client_session_send_loop<C: PlayerChannel>(
     client: &mut C,
     receiver: Receiver<Message>,
 ) -> Result<(), ServerError> {

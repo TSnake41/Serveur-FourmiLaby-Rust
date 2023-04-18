@@ -19,7 +19,7 @@ use crate::{
     game::{state::GameState, GameSession, GameSessionInfo},
     maze::generator::generate_maze,
     message::types::JoinMessageBody,
-    protocols::{ClientChannel, LobbyListener},
+    protocols::{PlayerChannel, LobbyListener},
 };
 use message::{LobbyMessage, MatchmakingInfo};
 
@@ -48,7 +48,7 @@ impl Lobby {
         }
     }
 
-    fn lobby<C: ClientChannel, L: LobbyListener<C>>(
+    fn lobby<C: PlayerChannel, L: LobbyListener<C>>(
         send: &Sender<LobbyMessage>,
         mut listener: L,
     ) -> Result<(), ServerError> {
@@ -66,7 +66,7 @@ impl Lobby {
         }
     }
 
-    pub fn run<C: ClientChannel, L: LobbyListener<C>>(
+    pub fn run<C: PlayerChannel, L: LobbyListener<C>>(
         mut self,
         listener: L,
     ) -> Result<(), ServerError> {

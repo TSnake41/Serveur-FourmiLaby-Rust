@@ -9,9 +9,9 @@ use crate::{
     message::{transmit, types::Message},
 };
 
-use super::{ClientChannel, LobbyListener};
+use super::{PlayerChannel, LobbyListener};
 
-impl ClientChannel for TcpStream {
+impl PlayerChannel for TcpStream {
     fn read_message(&mut self) -> Result<Message, ServerError> {
         transmit::read_message(self)
     }
