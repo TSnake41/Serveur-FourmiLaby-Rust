@@ -41,12 +41,12 @@ fn update_player_position(
         let (new_px, new_py, through_wall) = match Movement::from(msg.direction) {
             Movement::Up => (
                 player.position.0,
-                player.position.1.saturating_add(1),
+                player.position.1.saturating_sub(1),
                 tile.wall_north(),
             ),
             Movement::Down => (
                 player.position.0,
-                player.position.1.saturating_sub(1),
+                player.position.1.saturating_add(1),
                 tile.wall_south(),
             ),
             Movement::Right => (
@@ -79,7 +79,8 @@ fn update_player_position(
                 true
             };
 
-            if through_wall_dest && cfg!(debug) {
+            #[cfg(debug_assertions)]
+            if through_wall_dest {
                 // There should be a wall (or no tile) in the opposite direction
                 println!(
                     "Missing wall at ({new_px} {new_py}), from ({} {})",

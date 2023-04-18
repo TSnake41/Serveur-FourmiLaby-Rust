@@ -12,26 +12,26 @@ use crate::{
 };
 
 #[derive(Clone, Copy)]
-enum Movement {
-    Up,
-    Down,
-    Right,
-    Left,
+enum Direction {
+    North,
+    South,
+    East,
+    West,
 }
 
-impl From<Movement> for (i32, i32) {
-    fn from(value: Movement) -> Self {
+impl From<Direction> for (i32, i32) {
+    fn from(value: Direction) -> Self {
         match value {
-            Movement::Up => (0, 1),
-            Movement::Down => (0, -1),
-            Movement::Right => (1, 0),
-            Movement::Left => (-1, 0),
+            Direction::North => (0, -1),
+            Direction::South => (0, 1),
+            Direction::East => (1, 0),
+            Direction::West => (-1, 0),
         }
     }
 }
 
-impl Movement {
-    fn apply_movement(movement: Movement, (column, line): (u32, u32)) -> Option<(u32, u32)> {
+impl Direction {
+    fn apply_movement(movement: Direction, (column, line): (u32, u32)) -> Option<(u32, u32)> {
         let (dir_column, dir_line) = movement.into();
 
         match (
@@ -46,7 +46,7 @@ impl Movement {
 
 impl Maze {
     /// Put walls on the maze hulls.
-    fn generate_hull(&mut self) {
+    fn generate_border(&mut self) {
         for i in 0..self.nb_column {
             // Upper wall
             self.get_tile_mut(i, 0).unwrap().set_wall_north(true);
@@ -122,28 +122,23 @@ impl Maze {
         (column, line): (u32, u32),
         marked: &[bool],
         rng: &Rng,
-    ) -> Option<(Movement, (u32, u32))> {
-        let mut directions: [Movement; 4] = [
-            Movement::Up,
-            Movement::Down,
-            Movement::Right,
-            Movement::Left,
+    ) -> Option<(Direction, (u32, u32))> {
+        let mut directions: [Direction; 4] = [
+            Direction::North,
+            Direction::South,
+            Direction::East,
+            Direction::West,
         ];
         rng.shuffle(&mut directions);
 
         for dir in directions {
             // Get neighbor position (if any).
-            if let Some(pos) = Movement::apply_movement(dir, (column, line)) {
+            if let Some(pos) = Direction::apply_movement(dir, (column, line)) {
                 // Get marker
-                match (
-                    marked.get((pos.0 + pos.1 * self.nb_column) as usize),
-                    pos.0 < self.nb_column && pos.1 < self.nb_line, // check in bounds
-                ) {
-                    // Not marked and in bounds : OK
-                    (Some(false), true) => return Some((dir, pos)),
-
-                    // Out of bounds or already marked : KO
-                    _ => (),
+                if pos.0 < self.nb_column && pos.1 < self.nb_line // check in bounds
+                    && !marked[(pos.0 + pos.1 * self.nb_column) as usize]
+                {
+                    return Some((dir, pos));
                 }
             }
         }
@@ -151,8 +146,8 @@ impl Maze {
         None
     }
 
-    /// Apply the Depth-First Algorithm to carve the walls of the maze.
-    fn df_carving(
+    /// Apply a backtracking algorithm to carve the walls of the maze.
+    fn backtracing_carving(
         &mut self,
         (start_column, start_line): (u32, u32),
         rng: &Rng,
@@ -167,33 +162,33 @@ impl Maze {
         let mut marked_tiles =
             vec![false; (self.nb_line * self.nb_column) as usize].into_boxed_slice();
 
-        let mut tiles_queue: VecDeque<(u32, u32)> = VecDeque::new();
+        let mut backtracking_queue: VecDeque<(u32, u32)> = VecDeque::new();
 
-        tiles_queue.push_back((start_column, start_line));
+        backtracking_queue.push_back((start_column, start_line));
         marked_tiles[(start_column + start_line * self.nb_column) as usize] = true;
 
-        while let Some(tile) = tiles_queue.front() {
+        while let Some(tile) = backtracking_queue.front() {
             if let Some((dir, neighbor)) = self.get_random_neighbor(*tile, &marked_tiles, rng) {
                 // Break walls
                 self.break_wall(dir, &tile, neighbor);
 
-                tiles_queue.push_back(neighbor);
                 marked_tiles[(neighbor.0 + neighbor.1 * self.nb_column) as usize] = true;
+                backtracking_queue.push_front(neighbor);
             } else {
-                // Remove the actual tile, no unmarqued neighbors
-                tiles_queue.pop_front();
+                // Backtrack, no unmarqued neighbors
+                backtracking_queue.pop_front();
             }
         }
 
         // Make sure the hull still exists.
-        self.generate_hull();
+        self.generate_border();
         Ok(())
     }
 
     /// Break a neighbor wall.
-    fn break_wall(&mut self, dir: Movement, tile: &(u32, u32), neighbor: (u32, u32)) {
+    fn break_wall(&mut self, dir: Direction, tile: &(u32, u32), neighbor: (u32, u32)) {
         match dir {
-            Movement::Up => {
+            Direction::North => {
                 // N S
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_north(false);
@@ -203,7 +198,7 @@ impl Maze {
                     tile.set_wall_south(false);
                 }
             }
-            Movement::Down => {
+            Direction::South => {
                 // S N
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_south(false);
@@ -213,7 +208,7 @@ impl Maze {
                     tile.set_wall_north(false);
                 }
             }
-            Movement::Right => {
+            Direction::East => {
                 // E W
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_east(false);
@@ -223,7 +218,7 @@ impl Maze {
                     tile.set_wall_west(false);
                 }
             }
-            Movement::Left => {
+            Direction::West => {
                 // W E
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_west(false);
@@ -256,13 +251,13 @@ pub fn generate_empty_maze(nb_column: u32, nb_line: u32, rng: &Rng) -> Result<Ma
         tile.set_nest(true);
     }
 
-    maze.generate_hull();
+    maze.generate_border();
     maze.place_food(1, rng)?;
 
     Ok(maze)
 }
 
-pub fn generate_df_maze(
+pub fn generate_maze_backtracking(
     (nb_column, nb_line): (u32, u32),
     (nest_column, nest_line): (u32, u32),
     nb_food: u32,
@@ -289,7 +284,7 @@ pub fn generate_df_maze(
     let foods = maze.place_food(nb_food, rng)?;
 
     for food in foods.iter() {
-        maze.df_carving(*food, rng)?;
+        maze.backtracing_carving(*food, rng)?;
     }
 
     Ok(maze)
@@ -312,5 +307,5 @@ pub fn generate_maze(
 
     let nb_food = config.nb_food_min + (config.nb_food_coeff * critera.difficulty as f32) as u32;
 
-    generate_df_maze(size, nest_pos, nb_food, rng)
+    generate_maze_backtracking(size, nest_pos, nb_food, rng)
 }

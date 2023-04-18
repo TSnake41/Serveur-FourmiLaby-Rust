@@ -46,13 +46,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     while !rl.window_should_close() {
         let view = background_instance.view.lock().unwrap().clone();
 
-        if rl.is_key_pressed(KeyboardKey::KEY_DOWN) {
+        if rl.is_key_pressed(KeyboardKey::KEY_UP) {
             background_instance
                 .sender
                 .send(Message::Move(MoveMessageBody { direction: 0 }))?;
         }
 
-        if rl.is_key_pressed(KeyboardKey::KEY_UP) {
+        if rl.is_key_pressed(KeyboardKey::KEY_DOWN) {
             background_instance
                 .sender
                 .send(Message::Move(MoveMessageBody { direction: 1 }))?;
