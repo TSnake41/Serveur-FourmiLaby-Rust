@@ -11,3 +11,4 @@ pub mod maze;
 pub mod message;
 pub mod protocols;
 pub mod record;
+pub mod ai;
