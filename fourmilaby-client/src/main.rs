@@ -7,7 +7,7 @@ use std::{
 use fourmilaby_core::{
     client::{ClientGameView, ClientInstance},
     maze::Maze,
-    message::types::{JoinMessageBody, Message, MoveMessageBody},
+    message::types::{JoinMessageBody, Message, MoveDirection, MoveMessageBody},
 };
 use raylib::{self, ffi::KeyboardKey, prelude::*};
 
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut instance = ClientInstance::new(TcpStream::connect(addr)?);
 
     instance.join(JoinMessageBody {
-        difficulty: 5,
+        difficulty: 2,
         player_id: None,
     })?;
 
@@ -46,28 +46,36 @@ fn main() -> Result<(), Box<dyn Error>> {
     while !rl.window_should_close() {
         let view = background_instance.view.lock().unwrap().clone();
 
-        if rl.is_key_pressed(KeyboardKey::KEY_UP) {
-            background_instance
-                .sender
-                .send(Message::Move(MoveMessageBody { direction: 0 }))?;
-        }
-
         if rl.is_key_pressed(KeyboardKey::KEY_DOWN) {
             background_instance
                 .sender
-                .send(Message::Move(MoveMessageBody { direction: 1 }))?;
+                .send(Message::Move(MoveMessageBody {
+                    direction: MoveDirection::South,
+                }))?;
+        }
+
+        if rl.is_key_pressed(KeyboardKey::KEY_UP) {
+            background_instance
+                .sender
+                .send(Message::Move(MoveMessageBody {
+                    direction: MoveDirection::North,
+                }))?;
         }
 
         if rl.is_key_pressed(KeyboardKey::KEY_RIGHT) {
             background_instance
                 .sender
-                .send(Message::Move(MoveMessageBody { direction: 2 }))?;
+                .send(Message::Move(MoveMessageBody {
+                    direction: MoveDirection::East,
+                }))?;
         }
 
         if rl.is_key_pressed(KeyboardKey::KEY_LEFT) {
             background_instance
                 .sender
-                .send(Message::Move(MoveMessageBody { direction: 3 }))?;
+                .send(Message::Move(MoveMessageBody {
+                    direction: MoveDirection::West,
+                }))?;
         }
 
         rl.begin_drawing(&thread, |d| draw(d, view, &maze))

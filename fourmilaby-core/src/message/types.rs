@@ -2,8 +2,30 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{error::ServerError, maze::Maze};
+
+/// Each movement a player can do.
+#[derive(Debug, Clone, Copy, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
+pub enum MoveDirection {
+    North = 0,
+    South = 1,
+    East = 2,
+    West = 3,
+}
+
+impl Into<(i32, i32)> for MoveDirection {
+    fn into(self) -> (i32, i32) {
+        match self {
+            MoveDirection::North => (0, -1),
+            MoveDirection::South => (0, 1),
+            MoveDirection::East => (1, 0),
+            MoveDirection::West => (-1, 0),
+        }
+    }
+}
 
 /// Message received by the server by the client in the lobby to initiate the matchmaking.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +61,7 @@ pub struct InfoMessageBody {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveMessageBody {
-    pub direction: u8,
+    pub direction: MoveDirection,
 }
 
 /// Enumeration of all the possible messages formats.

@@ -8,30 +8,11 @@ use super::Maze;
 use crate::{
     config::{GeneratorConfig, NestPositioning},
     error::ServerError,
-    message::types::JoinMessageBody,
+    message::types::{JoinMessageBody, MoveDirection},
 };
 
-#[derive(Clone, Copy)]
-enum Direction {
-    North,
-    South,
-    East,
-    West,
-}
-
-impl From<Direction> for (i32, i32) {
-    fn from(value: Direction) -> Self {
-        match value {
-            Direction::North => (0, -1),
-            Direction::South => (0, 1),
-            Direction::East => (1, 0),
-            Direction::West => (-1, 0),
-        }
-    }
-}
-
-impl Direction {
-    fn apply_movement(movement: Direction, (column, line): (u32, u32)) -> Option<(u32, u32)> {
+impl MoveDirection {
+    fn apply_movement(movement: MoveDirection, (column, line): (u32, u32)) -> Option<(u32, u32)> {
         let (dir_column, dir_line) = movement.into();
 
         match (
@@ -122,18 +103,18 @@ impl Maze {
         (column, line): (u32, u32),
         marked: &[bool],
         rng: &Rng,
-    ) -> Option<(Direction, (u32, u32))> {
-        let mut directions: [Direction; 4] = [
-            Direction::North,
-            Direction::South,
-            Direction::East,
-            Direction::West,
+    ) -> Option<(MoveDirection, (u32, u32))> {
+        let mut directions: [MoveDirection; 4] = [
+            MoveDirection::North,
+            MoveDirection::South,
+            MoveDirection::East,
+            MoveDirection::West,
         ];
         rng.shuffle(&mut directions);
 
         for dir in directions {
             // Get neighbor position (if any).
-            if let Some(pos) = Direction::apply_movement(dir, (column, line)) {
+            if let Some(pos) = MoveDirection::apply_movement(dir, (column, line)) {
                 // Get marker
                 if pos.0 < self.nb_column && pos.1 < self.nb_line // check in bounds
                     && !marked[(pos.0 + pos.1 * self.nb_column) as usize]
@@ -186,9 +167,9 @@ impl Maze {
     }
 
     /// Break a neighbor wall.
-    fn break_wall(&mut self, dir: Direction, tile: &(u32, u32), neighbor: (u32, u32)) {
+    fn break_wall(&mut self, dir: MoveDirection, tile: &(u32, u32), neighbor: (u32, u32)) {
         match dir {
-            Direction::North => {
+            MoveDirection::North => {
                 // N S
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_north(false);
@@ -198,7 +179,7 @@ impl Maze {
                     tile.set_wall_south(false);
                 }
             }
-            Direction::South => {
+            MoveDirection::South => {
                 // S N
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_south(false);
@@ -208,7 +189,7 @@ impl Maze {
                     tile.set_wall_north(false);
                 }
             }
-            Direction::East => {
+            MoveDirection::East => {
                 // E W
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_east(false);
@@ -218,7 +199,7 @@ impl Maze {
                     tile.set_wall_west(false);
                 }
             }
-            Direction::West => {
+            MoveDirection::West => {
                 // W E
                 if let Some(tile) = self.get_tile_mut(tile.0, tile.1) {
                     tile.set_wall_west(false);
@@ -261,6 +242,7 @@ pub fn generate_maze_backtracking(
     (nb_column, nb_line): (u32, u32),
     (nest_column, nest_line): (u32, u32),
     nb_food: u32,
+    carving_amount: u32,
     rng: &Rng,
 ) -> Result<Maze, ServerError> {
     if nb_column == 0 || nb_line == 0 {
@@ -281,10 +263,10 @@ pub fn generate_maze_backtracking(
     }
 
     maze.fill_maze();
-    let foods = maze.place_food(nb_food, rng)?;
+    maze.place_food(nb_food, rng)?;
 
-    for food in foods.iter() {
-        maze.backtracing_carving(*food, rng)?;
+    for _ in 0..carving_amount {
+        maze.backtracing_carving((nest_column, nest_line), rng)?;
     }
 
     Ok(maze)
@@ -307,5 +289,5 @@ pub fn generate_maze(
 
     let nb_food = config.nb_food_min + (config.nb_food_coeff * critera.difficulty as f32) as u32;
 
-    generate_maze_backtracking(size, nest_pos, nb_food, rng)
+    generate_maze_backtracking(size, nest_pos, nb_food, config.carving_amount, rng)
 }

@@ -3,31 +3,10 @@ use std::sync::Arc;
 
 use crate::{
     maze::{Maze, Tile},
-    message::types::MoveMessageBody,
+    message::types::{MoveDirection, MoveMessageBody},
 };
 
 use super::{state::GameState, PlayerInfo};
-
-/// Each movement a player can do.
-enum Movement {
-    Up,
-    Down,
-    Right,
-    Left,
-    Unknown,
-}
-
-impl From<u8> for Movement {
-    fn from(m: u8) -> Self {
-        match m {
-            0 => Self::Up,
-            1 => Self::Down,
-            2 => Self::Right,
-            3 => Self::Left,
-            _ => Self::Unknown,
-        }
-    }
-}
 
 /// Update the player position.
 fn update_player_position(
@@ -38,28 +17,27 @@ fn update_player_position(
     if let Some(tile) = maze.get_tile(player.position.0, player.position.1) {
         // Position considering movement (try to not underflow, may lead out of bounds; checked later)
         // Check if we are passing through a wall.
-        let (new_px, new_py, through_wall) = match Movement::from(msg.direction) {
-            Movement::Up => (
+        let (new_px, new_py, through_wall) = match msg.direction {
+            MoveDirection::North => (
                 player.position.0,
                 player.position.1.saturating_sub(1),
                 tile.wall_north(),
             ),
-            Movement::Down => (
+            MoveDirection::South => (
                 player.position.0,
                 player.position.1.saturating_add(1),
                 tile.wall_south(),
             ),
-            Movement::Right => (
+            MoveDirection::East => (
                 player.position.0.saturating_add(1),
                 player.position.1,
                 tile.wall_east(),
             ),
-            Movement::Left => (
+            MoveDirection::West => (
                 player.position.0.saturating_sub(1),
                 player.position.1,
                 tile.wall_west(),
             ),
-            Movement::Unknown => (player.position.0, player.position.1, false),
         };
 
         if !through_wall {
@@ -67,12 +45,11 @@ fn update_player_position(
 
             // Check the other side of the wall at destination.
             let through_wall_dest = if let Some(t) = &dest_tile {
-                match Movement::from(msg.direction) {
-                    Movement::Up => t.wall_south(),
-                    Movement::Down => t.wall_north(),
-                    Movement::Right => t.wall_west(),
-                    Movement::Left => t.wall_east(),
-                    Movement::Unknown => false,
+                match msg.direction {
+                    MoveDirection::North => t.wall_south(),
+                    MoveDirection::South => t.wall_north(),
+                    MoveDirection::East => t.wall_west(),
+                    MoveDirection::West => t.wall_east(),
                 }
             } else {
                 // Out of bounds
