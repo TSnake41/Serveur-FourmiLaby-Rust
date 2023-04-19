@@ -14,12 +14,12 @@ use std::{
 };
 
 use crate::{
+    ai::{probabilistic::ProbabilisticAnt, AntGroup},
     config::LobbyConfig,
-    error::ServerError,
     game::{state::GameState, GameSession, GameSessionInfo},
     maze::generator::generate_maze,
     message::types::JoinMessageBody,
-    protocols::{PlayerChannel, LobbyListener},
+    protocols::{LobbyListener, PlayerChannel}, error::ServerError,
 };
 use message::{LobbyMessage, MatchmakingInfo};
 
@@ -131,6 +131,12 @@ impl Lobby {
         if let Ok(info) = &session {
             // Add the game to the list.
             self.games.push(Arc::downgrade(info));
+
+            // Put AI in game.
+            AntGroup::<ProbabilisticAnt>::new(10, info.channel.lock()?.clone(), info.maze.clone())
+                .unwrap()
+                .start(Duration::from_millis(1000))
+                .unwrap();
         }
 
         session
