@@ -16,10 +16,11 @@ use std::{
 use crate::{
     ai::{probabilistic::ProbabilisticAnt, AntGroup},
     config::LobbyConfig,
+    error::ServerError,
     game::{state::GameState, GameSession, GameSessionInfo},
     maze::generator::generate_maze,
     message::types::JoinMessageBody,
-    protocols::{LobbyListener, PlayerChannel}, error::ServerError,
+    protocols::{LobbyListener, PlayerChannel},
 };
 use message::{LobbyMessage, MatchmakingInfo};
 

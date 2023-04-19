@@ -9,7 +9,7 @@ use crate::{
     message::{transmit, types::Message},
 };
 
-use super::{PlayerChannel, LobbyListener};
+use super::{LobbyListener, PlayerChannel};
 
 impl PlayerChannel for TcpStream {
     fn read_message(&mut self) -> Result<Message, ServerError> {
