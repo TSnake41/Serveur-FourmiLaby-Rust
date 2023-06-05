@@ -1,5 +1,6 @@
 //! Artifical intelligences implementations.
 pub mod probabilistic;
+pub mod dfs;
 
 use std::{
     collections::HashMap,
