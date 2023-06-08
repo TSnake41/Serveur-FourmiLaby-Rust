@@ -16,6 +16,20 @@ pub enum MoveDirection {
     West = 3,
 }
 
+impl MoveDirection {
+    pub fn apply_movement(movement: MoveDirection, (column, line): (u32, u32)) -> Option<(u32, u32)> {
+        let (dir_column, dir_line) = movement.into();
+
+        match (
+            column.checked_add_signed(dir_column),
+            line.checked_add_signed(dir_line),
+        ) {
+            (Some(c), Some(l)) => Some((c, l)),
+            _ => None, // underflowed
+        }
+    }
+}
+
 impl Into<(i32, i32)> for MoveDirection {
     fn into(self) -> (i32, i32) {
         match self {

@@ -10,7 +10,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::ServerError;
+use crate::{error::ServerError, message::types::MoveDirection};
 
 /// A wrapped [`Maze`] tile.
 #[derive(Debug)]
@@ -106,6 +106,50 @@ impl Tile {
 
     pub fn set_food(&mut self, value: bool) {
         set_bit(&mut self.0, 5, value);
+    }
+
+    pub fn get_walls(&self) -> Vec<MoveDirection> {
+        let mut directions = Vec::with_capacity(4);
+
+        if self.wall_north() {
+            directions.push(MoveDirection::North);
+        }
+
+        if self.wall_west() {
+            directions.push(MoveDirection::West)
+        }
+
+        if self.wall_south() {
+            directions.push(MoveDirection::South)
+        }
+
+        if self.wall_east() {
+            directions.push(MoveDirection::East);
+        }
+
+        directions
+    }
+
+    pub fn get_walkable_directions(&self) -> Vec<MoveDirection> {
+        let mut directions = Vec::with_capacity(4);
+
+        if !self.wall_north() {
+            directions.push(MoveDirection::North);
+        }
+
+        if !self.wall_west() {
+            directions.push(MoveDirection::West)
+        }
+
+        if !self.wall_south() {
+            directions.push(MoveDirection::South)
+        }
+
+        if !self.wall_east() {
+            directions.push(MoveDirection::East);
+        }
+
+        directions
     }
 }
 
